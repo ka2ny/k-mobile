@@ -9,7 +9,7 @@ final class NavigationTests: XCTestCase {
         capture("Home", app)
         app.buttons["Connections"].tap()
         XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 3))
-        app.buttons["Add connection"].tap()
+        app.buttons["connections.add"].tap()
         XCTAssertTrue(app.navigationBars["Make a connection"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["Pair securely"].isEnabled)
         capture("Pairing-empty", app)

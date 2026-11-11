@@ -34,6 +34,7 @@ struct ConnectionsView: View {
                         }
                         Button("Add connection", systemImage: "plus") { showPairing = true }
                             .frame(minHeight: 44).disabled(model.interacting)
+                            .accessibilityIdentifier("connections.add")
                     } footer: {
                         Text(
                             "Computer uses the phone gateway. Companion uses the desktop’s dedicated k-chain address. Each keeps its own pairing and permissions."
