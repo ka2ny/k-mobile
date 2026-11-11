@@ -40,7 +40,7 @@ Added XCUITest navigation checks, disconnected-state assertions, screenshot atta
 - Passed locally: 22 portable Swift tests; eight CI helper tests; four extraction tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
 - GitHub PR #1: <https://github.com/ka2ny/k-mobile/pull/1>.
 - GitHub execution did not reach compilation. No Apple SDK or simulator results are available from this review. Resolve CI availability before retrying checks.
-- Configure distribution signing according to `ci/README.md` before requesting an IPA export.
+- Unsigned IPA packaging now needs no Apple signing configuration. Use `ci/README.md` for the default pack-now/sign-later path; configure signing only for optional signed exports.
 - Native build/API/concurrency correctness, UI screenshots, Dynamic Type/VoiceOver, Reduce Motion and measured launch performance remain gates. The new XCUITest suite must run successfully, and screenshots must be inspected before calling the visual pass verified.
 - Physical iPhone/board bonding, wrong-code/reset/reconnect flows, TLS relay interoperability and locked/suspended background reliability remain unverified. Native SoftAP, streaming, files and voice remain outside the implemented native scope.
 

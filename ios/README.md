@@ -8,7 +8,7 @@ Native SwiftUI app for your computer and physical k-chain. Includes Apple access
 
 ## GitHub CI / IPA packaging
 
-[GitHub Actions + Fastlane setup](ci/README.md) covers simulator checks, distribution signing and downloadable IPA artifacts. The workflow supports Ad Hoc and App Store exports without publishing to Apple. A remote run was attempted but did not reach compilation.
+[GitHub Actions + Fastlane setup](ci/README.md) covers simulator checks and unsigned IPA packaging for signing later. No Apple credentials are needed for the default unsigned path; signed Ad Hoc/App Store exports are optional. A remote run was attempted but did not reach compilation.
 
 ## Open and run
 

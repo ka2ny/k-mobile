@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record the exact source and toolchain beside the signed build artifact."""
+"""Record the exact source and toolchain beside the build artifact."""
 import hashlib
 import json
 import os
@@ -8,9 +8,9 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 output = root / "build/ipa"
-ipa = output / "KMobile.ipa"
+ipa = output / os.environ.get("IOS_IPA_NAME", "KMobile.ipa")
 if not ipa.is_file() or not ipa.stat().st_size:
-    raise SystemExit("Fastlane did not produce KMobile.ipa")
+    raise SystemExit("Fastlane did not produce the requested IPA")
 def digest(path):
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
@@ -20,6 +20,7 @@ metadata = {
     "commit": os.environ["GITHUB_SHA"],
     "run_id": os.environ["GITHUB_RUN_ID"],
     "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+    "requires_external_signing": os.environ["IOS_EXPORT_METHOD"] == "unsigned",
     "export_method": os.environ["IOS_EXPORT_METHOD"],
     "bundle_id": os.environ["IOS_BUNDLE_ID"],
     "xcode": subprocess.check_output(["xcodebuild", "-version"], text=True).strip(),

@@ -1,10 +1,25 @@
 # Build an IPA with GitHub Actions and Fastlane
 
-The workflow is `.github/workflows/ios.yml`. Pushes to `main` and pull requests run PWA checks, portable Swift tests and native simulator tests. A manual run on the repository's **default branch** runs those tests, then archives and exports a signed IPA through Fastlane. It does not upload to TestFlight, App Store Connect or GitHub Releases.
+The workflow is `.github/workflows/ios.yml`. Pushes to `main` and pull requests run PWA checks, portable Swift tests and native simulator tests, then package an **unsigned IPA**. Manual runs default to unsigned packaging too. Optional signed exports remain available on the default branch. It does not upload to TestFlight, App Store Connect or GitHub Releases.
 
 The app is on the review branch in `ka2ny/k-mobile` (PR #1). The first GitHub run did not reach compilation. No IPA has been produced. Complete the native checks before requesting an export. Firmware and OS repositories are not build targets.
 
-## GitHub configuration
+## Default: pack now, sign later
+
+No Apple account, team ID, P12, profile, secrets or `ios-signing` environment is required for **unsigned** builds. After tests, Fastlane archives a Release **arm64 iPhoneOS device** build with signing disabled. A separate packer validates the Mach-O platform and executable permissions, then writes `Payload/KMobile.app` into `KMobile-unsigned.ipa`. It preserves framework symlinks and Unix permissions and rejects links outside the app bundle.
+
+Download **KMobile-unsigned-<run>-<attempt>** from the successful run's artifacts. It contains `KMobile-unsigned.ipa`, checksums/build identity and the dependency lockfile. Sign this IPA using your own signing tool afterward. No Apple export or upload happens in this mode. A working macOS CI runner is still needed to compile the application; changing packaging mode does not fix unavailable Actions execution.
+
+On a Mac with Xcode 27+, from `ios/`:
+
+```sh
+bundle install
+bundle exec fastlane ios unsigned_ipa
+```
+
+Output: `ios/build/ipa/KMobile-unsigned.ipa`. Optional `IOS_BUNDLE_ID`, `IOS_BUILD_NUMBER` and `IOS_MARKETING_VERSION` override bundle/version metadata before compilation.
+
+## Optional signed export configuration
 
 Create a GitHub environment named **ios-signing**. Add these secrets directly in GitHub settings; do not commit them or paste them into chat:
 
@@ -37,10 +52,10 @@ Paste each clipboard value into its respective GitHub secret. The temporary keyc
 
 ## Run and download
 
-1. Open **Actions → iOS checks and IPA → Run workflow**, select the default branch and choose `ad-hoc` or `app-store`.
+1. Open **Actions → iOS checks and IPA → Run workflow**, choose `unsigned` (default). Choose `ad-hoc` or `app-store` on the default branch only if you want CI to sign too.
 2. Optionally override the marketing version, such as `0.1.0`. The build number is `<GitHub run number>.<run attempt>` so a retry produces a distinct build number.
-3. Wait for the simulator tests and signed archive/export to finish.
-4. Download artifact **KMobile-<method>-<run>-<attempt>**. It contains `KMobile.ipa`, generated symbol ZIPs, `build.json` with the source commit/toolchain/checksums, and the resolved `Gemfile.lock`. Test results are a separate artifact. Retention is 14 days.
+3. Wait for the tests and device archive/packaging to finish.
+4. Download artifact **KMobile-<method>-<run>-<attempt>**. It contains `KMobile-unsigned.ipa` in unsigned mode, or `KMobile.ipa` and generated symbol ZIPs for signed mode, `build.json` with the source commit/toolchain/checksums, and the resolved `Gemfile.lock`. Test results are a separate artifact. Retention is 14 days.
 
 The profile's expiration, explicit app ID, team, distribution type and matching private-key identity are checked before archiving. Signing material is imported into a temporary keychain; the cleanup step always runs and restores the original search list. Only dedicated temporary files/profiles are removed. Use the configured ephemeral GitHub-hosted runner; these scripts are not designed for a shared persistent signing machine.
 
@@ -60,7 +75,7 @@ python3 ios/generate_project.py
 git diff --exit-code -- ios/KMobile.xcodeproj
 ```
 
-Fastlane lane commands on a configured Mac are `bundle exec fastlane ios test` and `bundle exec fastlane ios ipa`, run from `ios/`. The test lane needs `SIMULATOR_UDID`. The IPA lane uses the metadata produced by `signing.py install`; the workflow scopes certificate secrets to that installation step. Never run the signing helper on your personal keychain without adapting its ephemeral-runner assumptions.
+Fastlane lane commands on a configured Mac are `bundle exec fastlane ios test`, `bundle exec fastlane ios unsigned_ipa` and optional `bundle exec fastlane ios ipa`, run from `ios/`. The test lane needs `SIMULATOR_UDID`. The IPA lane uses the metadata produced by `signing.py install`; the workflow scopes certificate secrets to that installation step. Never run the signing helper on your personal keychain without adapting its ephemeral-runner assumptions.
 
 A successful CI build validates compilation/tests and produces an IPA. Bluetooth bonding, Wi-Fi provisioning, board interoperability and locked-phone relay reliability still require physical-device checks in `../README.md`.
 
