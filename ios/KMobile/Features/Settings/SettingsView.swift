@@ -31,7 +31,7 @@ struct SettingsView: View {
                     Label("Credentials stay in Keychain", systemImage: "key")
                 }
                 Section("About") {
-                    LabeledContent("k-hole", value: "Native iOS · 0.1")
+                    LabeledContent("k-hole", value: "Native iOS · " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"))
                     Text("Connects to your computer’s phone gateway and k-chain companion service. Includes Bluetooth board pairing and Wi-Fi setup. Voice recording and native desktop streaming are not included in this version.")
                         .foregroundStyle(.secondary)
                     Text("Remote, Beam and the full Agents workspace open in your browser. They may ask you to pair separately.")

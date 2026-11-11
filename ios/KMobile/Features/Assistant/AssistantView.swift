@@ -84,6 +84,6 @@ struct AssistantView: View {
             }
             .buttonStyle(.borderedProminent).controlSize(.large)
             .disabled(model.interacting || goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }.quietCard()
+        }.quietCard().disabled(model.interacting)
     }
 }

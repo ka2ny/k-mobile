@@ -148,6 +148,7 @@ struct BoardLinkView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var code = ""
     @State private var remove: GatewayModels.BoardLink?
+    @State private var cooldownActive = false
     var body: some View {
         Form {
             Section {
@@ -160,7 +161,7 @@ struct BoardLinkView: View {
                         .disabled(model.linkBusy)
                     Button("Link phone") {
                         Task { if await model.linkBoard(code: code) { code = "" } }
-                    }.disabled(code.count != 6 || model.linkBusy || model.busy || (model.linkRetryAt.map { $0 > .now } ?? false))
+                    }.disabled(code.count != 6 || model.linkBusy || model.busy || cooldownActive)
                     if let retry = model.linkRetryAt, retry > .now {
                         Text("Try again after \(retry.formatted(date: .omitted, time: .standard)).").foregroundStyle(.secondary)
                     }
@@ -188,9 +189,16 @@ struct BoardLinkView: View {
         .task(id: "\(model.selectedID?.uuidString ?? "none")-\(model.supportsBoardLink)-\(scenePhase)") {
             guard scenePhase == .active else { code = ""; return }
             while !Task.isCancelled {
+                guard model.supportsBoardLink else { return }
                 await model.refreshBoardLinks()
                 do { try await Task.sleep(for: .seconds(5)) } catch { return }
             }
+        }
+        .task(id: model.linkRetryAt) {
+            guard let deadline = model.linkRetryAt else { cooldownActive = false; return }
+            cooldownActive = deadline > .now
+            do { try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow))) } catch { return }
+            cooldownActive = false
         }
         .onChange(of: model.selectedID) { code = "" }
         .confirmationDialog("Remove this phone’s desktop association?", isPresented: Binding(get: { remove != nil }, set: { if !$0 { remove = nil } }), titleVisibility: .visible) {

@@ -21,6 +21,7 @@ final class PhoneRelay {
     }
     private var streams: [UInt8: Stream] = [:]
     private var control: [RelayFrame] = []
+    private var flushing = false
     private let maximumPayload: Int
     private let send: (Data) -> Bool
     private let changed: (Int) -> Void
@@ -109,31 +110,49 @@ final class PhoneRelay {
         dial(stream)
     }
     func flush() {
-        guard maximumPayload > 0 else { return }
-        while let first = control.first {
-            guard send(first.encoded) else { return }
-            control.removeFirst()
+        guard !flushing, maximumPayload > 0 else { return }
+        flushing = true
+        defer { flushing = false }
+        var sent = 0
+        // Bound work on the UI actor; each round gives every stream a turn.
+        while sent < 16 {
+            while sent < 16, let first = control.first {
+                guard send(first.encoded) else { return }
+                control.removeFirst()
+                sent += 1
+            }
+            if sent >= 16 { break }
+            var progressed = false
+            for stream in Array(streams.values) where stream.ready {
+                if sent >= 16 { break }
+                if !stream.announced {
+                    guard send(RelayFrame(kind: .opened, stream: stream.id, payload: Data([0])).encoded) else { return }
+                    stream.announced = true
+                    sent += 1; progressed = true
+                }
+                if sent >= 16 { break }
+                if let pending = stream.pending {
+                    let chunk = Data(pending.prefix(maximumPayload))
+                    guard send(RelayFrame(kind: .data, stream: stream.id, payload: chunk).encoded) else { return }
+                    do { try stream.window.consume(chunk.count) } catch { close(stream.id); continue }
+                    stream.pending = pending.count == chunk.count ? nil : Data(pending.dropFirst(chunk.count))
+                    sent += 1; progressed = true
+                    if stream.pending == nil && stream.endAfterPending { close(stream.id); continue }
+                }
+                read(stream)
+            }
+            if !progressed && control.isEmpty { return }
         }
-        // At most one bounded read per stream; CoreBluetooth backpressure stops all further reads.
-        for stream in Array(streams.values) where stream.ready {
-            if !stream.announced {
-                guard send(RelayFrame(kind: .opened, stream: stream.id, payload: Data([0])).encoded) else { return }
-                stream.announced = true
-            }
-            if let data = stream.pending {
-                guard send(RelayFrame(kind: .data, stream: stream.id, payload: data).encoded) else { return }
-                do { try stream.window.consume(data.count) } catch { close(stream.id); continue }
-                stream.pending = nil
-                if stream.endAfterPending { close(stream.id); continue }
-            }
-            read(stream)
+        Task { [weak self] in
+            await Task.yield()
+            self?.flush()
         }
     }
     private func read(_ stream: Stream) {
         guard !stream.reading, stream.pending == nil, stream.window.available > 0,
               let connection = stream.connection else { return }
         stream.reading = true
-        connection.receive(minimumIncompleteLength: 1, maximumLength: min(maximumPayload, stream.window.available)) { [weak self, weak stream] data, _, complete, error in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: min(4096, stream.window.available)) { [weak self, weak stream] data, _, complete, error in
             Task { @MainActor in
                 guard let self, let stream, self.streams[stream.id] === stream, stream.connection === connection else { return }
                 stream.reading = false

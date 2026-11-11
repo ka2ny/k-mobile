@@ -21,11 +21,11 @@ Open **http://127.0.0.1:4173**. Alternative: `npm start`. Use `--port 4174` to c
 
 ## Repository
 
-`ios/` contains a separate native SwiftUI client for Computer and k-chain companion connections. Open `ios/KMobile.xcodeproj` on a Mac; see [native iOS setup and implementation scope](ios/README.md). Native accessory pairing, BLE Wi-Fi setup, encrypted-traffic relay and version-gated phone linking are implemented. Portable Swift protocol tests pass; full Xcode, simulator, physical-device and live-backend checks have not been run. The extracted PWA remains unchanged. [GitHub Actions and Fastlane](ios/ci/README.md) provide simulator checks and manual signed IPA exports once the mobile repository and signing settings are configured on GitHub.
+`ios/` contains a separate native SwiftUI client for Computer and k-chain companion connections. Open `ios/KMobile.xcodeproj` on a Mac; see [native iOS setup and implementation scope](ios/README.md). Native accessory pairing, BLE Wi-Fi setup, encrypted-traffic relay and version-gated phone linking are implemented. Portable Swift protocol tests pass; full Xcode, simulator, physical-device and live-backend checks have not been run. The extracted PWA remains unchanged. [GitHub Actions and Fastlane](ios/ci/README.md) provide simulator checks and manual signed IPA exports after the GitHub account billing lock is resolved and signing settings are configured.
 
 `public/` contains browser-ready sources with the original route structure, fonts, icons and four service workers. `docs/FEATURES.md` inventories the copied features and their backend dependencies. `docs/INTEGRATION.md` explains production routes and extraction boundaries. `source.json` records upstream paths and SHA-256 hashes; copied production files are byte-identical. `docs/UPSTREAM-DESIGN.md` preserves the original design/performance notes, which predate some Assistant additions.
 
-The copy has its own Git history, no remote, no OS build products, model weights, credentials or node_modules. Source notices and font licenses are retained. Desktop Agents and host services stay in the OS repository.
+The local extraction retains its own Git history. The user-authorized native app review is published separately in `ka2ny/k-mobile` on PR #1. No OS build products, model weights, credentials or node_modules are included. Source notices and font licenses are retained. Desktop Agents and host services stay in the OS repository.
 
 ## Verify
 

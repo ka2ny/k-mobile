@@ -41,7 +41,7 @@ def main():
         return add(label + "configs", f"isa = XCConfigurationList; buildConfigurations = {array(ids)}; defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;")
 
     source_groups, phases = [], {}
-    for target, folder in (("app", "KMobile"), ("tests", "KMobileTests")):
+    for target, folder in (("app", "KMobile"), ("tests", "KMobileTests"), ("ui", "KMobileUITests")):
         refs, builds = [], []
         for path in sorted((ROOT / folder).rglob("*.swift")):
             relative = path.relative_to(ROOT).as_posix()
@@ -61,7 +61,8 @@ def main():
 
     app_product = add("appProduct", 'isa = PBXFileReference; explicitFileType = wrapper.application; path = KMobile.app; sourceTree = BUILT_PRODUCTS_DIR;')
     tests_product = add("testsProduct", 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = KMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
-    products = add("products", f'isa = PBXGroup; children = {array([app_product, tests_product])}; name = Products; sourceTree = "<group>";')
+    ui_product = add("uiProduct", 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = KMobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
+    products = add("products", f'isa = PBXGroup; children = {array([app_product, tests_product, ui_product])}; name = Products; sourceTree = "<group>";')
     group = add("mainGroup", f'isa = PBXGroup; children = {array(source_groups + [products])}; sourceTree = "<group>";')
     common = {"SDKROOT": "iphoneos", "IPHONEOS_DEPLOYMENT_TARGET": "27.0", "SWIFT_VERSION": "6.0",
               "SWIFT_STRICT_CONCURRENCY": "complete", "CLANG_ENABLE_MODULES": "YES", "CODE_SIGN_STYLE": "Automatic",
@@ -76,11 +77,14 @@ def main():
     test_configs = configurations("tests", {"PRODUCT_NAME": "KMobileTests", "PRODUCT_BUNDLE_IDENTIFIER": "app.khole.mobile.tests",
         "GENERATE_INFOPLIST_FILE": "YES", "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/KMobile.app/KMobile",
         "BUNDLE_LOADER": "$(TEST_HOST)"})
+    ui_configs = configurations("ui", {"PRODUCT_NAME": "KMobileUITests", "PRODUCT_BUNDLE_IDENTIFIER": "app.khole.mobile.uitests",
+        "GENERATE_INFOPLIST_FILE": "YES", "TEST_TARGET_NAME": "KMobile"})
     app = add("appTarget", f'isa = PBXNativeTarget; buildConfigurationList = {app_configs}; buildPhases = {array([phases["app"], phases["resources"]])}; buildRules = (); dependencies = (); name = KMobile; productName = KMobile; productReference = {app_product}; productType = "com.apple.product-type.application";')
     proxy = add("proxy", f'isa = PBXContainerItemProxy; containerPortal = {ident("project")}; proxyType = 1; remoteGlobalIDString = {app}; remoteInfo = KMobile;')
     dependency = add("dependency", f'isa = PBXTargetDependency; target = {app}; targetProxy = {proxy};')
     tests = add("testsTarget", f'isa = PBXNativeTarget; buildConfigurationList = {test_configs}; buildPhases = {array([phases["tests"]])}; buildRules = (); dependencies = {array([dependency])}; name = KMobileTests; productName = KMobileTests; productReference = {tests_product}; productType = "com.apple.product-type.bundle.unit-test";')
-    project = add("project", f'isa = PBXProject; attributes = {{ LastUpgradeCheck = 2710; }}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = {group}; productRefGroup = {products}; projectDirPath = ""; projectRoot = ""; targets = {array([app, tests])};')
+    ui = add("uiTarget", f'isa = PBXNativeTarget; buildConfigurationList = {ui_configs}; buildPhases = {array([phases["ui"]])}; buildRules = (); dependencies = {array([dependency])}; name = KMobileUITests; productName = KMobileUITests; productReference = {ui_product}; productType = "com.apple.product-type.bundle.ui-testing";')
+    project = add("project", f'isa = PBXProject; attributes = {{ LastUpgradeCheck = 2710; }}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = {group}; productRefGroup = {products}; projectDirPath = ""; projectRoot = ""; targets = {array([app, tests, ui])};')
     destination = ROOT / "KMobile.xcodeproj"
     destination.mkdir(exist_ok=True)
     body = "\n".join(f"\t\t{key} = {{ {value} }};" for key, value in sorted(objects.items()))
@@ -93,12 +97,13 @@ def main():
 
     app_ref = reference(app, "KMobile", "KMobile.app")
     test_ref = reference(tests, "KMobileTests", "KMobileTests.xctest")
+    ui_ref = reference(ui, "KMobileUITests", "KMobileUITests.xctest")
     scheme.write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2710" version="1.7">
  <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries>
   <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">{app_ref}</BuildActionEntry>
  </BuildActionEntries></BuildAction>
- <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO">{test_ref}</TestableReference></Testables></TestAction>
+ <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO">{test_ref}</TestableReference><TestableReference skipped="NO">{ui_ref}</TestableReference></Testables></TestAction>
  <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0">{app_ref}</BuildableProductRunnable></LaunchAction>
  <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0">{app_ref}</BuildableProductRunnable></ProfileAction>
  <AnalyzeAction buildConfiguration="Debug"/>

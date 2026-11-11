@@ -2,9 +2,13 @@
 
 Native SwiftUI app for your computer and physical k-chain. Includes Apple accessory selection, BLE Wi-Fi setup, Bluetooth byte relaying and desktop phone association. This is an implementation candidate awaiting full Xcode and physical-device qualification, not a verified shipping build. No WebView, external Swift packages, bundled credentials or simulated successful services are included. The original PWA remains unchanged in `../public/`.
 
+## Review, motion and performance
+
+[Review findings and validation limits](REVIEW.md) record the fixes, event-driven motion, polling/relay changes and outstanding device measurements. GitHub PR #1 is open; the first CI run was blocked by the GitHub account billing lock before compilation.
+
 ## GitHub CI / IPA packaging
 
-[GitHub Actions + Fastlane setup](ci/README.md) covers simulator checks, distribution signing and downloadable IPA artifacts. The workflow supports Ad Hoc and App Store exports without publishing to Apple. No remote run has been performed yet.
+[GitHub Actions + Fastlane setup](ci/README.md) covers simulator checks, distribution signing and downloadable IPA artifacts. The workflow supports Ad Hoc and App Store exports without publishing to Apple. A remote run was attempted but could not start because of the account billing lock.
 
 ## Open and run
 
@@ -62,7 +66,7 @@ Native WebRTC streaming, file transfer/share extensions, Assistant attachments/h
 - Each desktop connection uses an ephemeral URLSession. In-memory HttpOnly cookies preserve gateway semantics; redirects and API caching are disabled. No tokens/cookies are passed to browser links or to the board.
 - Desktop controls require authenticated permissions. Pairing, control requests, Bluetooth authorization and S6 association do not imply control approval. Unsupported link versions/grants fail closed.
 - Wi-Fi credentials follow successful Security 1 device-proof verification. One CTR context spans handshake and both directions. Interruptions terminate the session; no insecure fallback or automatic PoP retries. Only a board-reported connected state with an address means success.
-- Foreground desktop polling runs every five seconds; Assistant polls every three seconds while selected. Backgrounding invalidates live controls and stops Wi-Fi setup. Relay callbacks and TCP buffers are bounded and connection-scoped.
+- Foreground desktop polling runs every five seconds on interactive tabs, every fifteen seconds on idle tabs, and backs off to thirty seconds on connection failures; Assistant polls every three seconds while selected. Backgrounding invalidates live controls and stops Wi-Fi setup. Relay callbacks and TCP buffers are bounded and connection-scoped.
 - Bluetooth background mode and restoration are configured, but sustained background TCP is not guaranteed by that configuration. The UI recommends keeping the app open. Locked/suspended/restored iPhone behavior requires measurement before any background-reliability claim.
 - Actions are not automatically retried. A lost response may follow actual execution; errors ask the user to check before retrying. Local desktop forgetting does not revoke access on the computer. Accessory forgetting and S6 unlinking are independent.
 
@@ -72,7 +76,7 @@ Latest firmware/OS contracts, ticket status and exact source hashes are in [prov
 
 Executed in this Linux workspace on 2026-11-11:
 
-- Portable Swift 6.2.4 package: 18 protocol and gateway contract tests compiled and passed. Includes malformed/oversized messages, unsafe destinations, credit limits, known protobuf bytes, connected-state requirements, capability/grant validation and unsafe origins.
+- Portable Swift 6.2.4 package: 22 protocol and gateway contract tests compiled and passed. Includes malformed/oversized messages, unsafe destinations, credit limits, known protobuf bytes, connected-state requirements, capability/grant validation and unsafe origins.
 - Swift compiler frontend parsed every app and native-test source. This is syntax validation, not Apple SDK type-checking.
 - Generated Xcode project, source/resource references, plist, scheme and icon metadata checked.
 - `npm test`: four extraction tests passed, including 12 JavaScript syntax checks and 47 cache references. Original PWA hashes remain unchanged.
@@ -89,6 +93,6 @@ Before release, record results for:
 
 ## Design and sources
 
-Warm neutral surfaces, violet accents and native system controls provide a restrained visual foundation. No custom motion effects or decorative bitmap assets are required. The unchanged k-hole SVG mark is rasterized at 1024 × 1024 for the app icon; hashes and the original notice are preserved. Native text uses system fonts and SF Symbols; PWA fonts/notices are intact.
+Warm neutral surfaces, violet accents and native system controls provide a restrained visual foundation. Finite page entrances, control press feedback and confirmed-action haptics respect accessibility settings. No decorative bitmap assets or perpetual animations are used. The unchanged k-hole SVG mark is rasterized at 1024 × 1024 for the app icon; hashes and the original notice are preserved. Native text uses system fonts and SF Symbols; PWA fonts/notices are intact.
 
 Guidance was consulted from [Swift Agent Skills](https://github.com/twostraws/swift-agent-skills) and [SwiftUI Pro](https://github.com/twostraws/SwiftUI-Agent-Skill/blob/main/swiftui-pro/SKILL.md). No skills were globally installed. Apple framework documentation and ESP-IDF v5.5.5 protocol definitions informed the independent implementation; no third-party framework is bundled.

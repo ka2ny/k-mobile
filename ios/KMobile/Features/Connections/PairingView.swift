@@ -9,6 +9,7 @@ struct PairingView: View {
     @State private var pin = ""
     @State private var certificateCode = ""
     @State private var errorMessage: String?
+    @State private var pairingTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -49,7 +50,7 @@ struct PairingView: View {
                 }
                 Section {
                     Button {
-                        Task {
+                        pairingTask = Task {
                             errorMessage = nil
                             if await model.pair(name: name, address: address, kind: kind, pin: pin, code: certificateCode) {
                                 pin = ""
@@ -69,12 +70,12 @@ struct PairingView: View {
                     .disabled(model.busy || address.isEmpty || pin.count != 6)
                 }
             }
-            .disabled(model.busy)
+            .disabled(model.interacting)
             .navigationTitle("Make a connection")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(model.busy) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { pairingTask?.cancel(); dismiss() } } }
             .interactiveDismissDisabled(model.busy)
-            .onDisappear { pin = ""; certificateCode = "" }
+            .onDisappear { pairingTask?.cancel(); pin = ""; certificateCode = "" }
         }
     }
 }

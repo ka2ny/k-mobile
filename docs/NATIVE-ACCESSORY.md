@@ -2,7 +2,7 @@
 
 ## Scope and reviewed updates
 
-The mobile repository is local and unpublished. Firmware and OS code, configuration, branches and deployments are unchanged. Backend work remains ticket-only.
+The mobile repository was initially local; the user subsequently authorized GitHub review in `ka2ny/k-mobile` (PR #1). Firmware and OS code, configuration, branches and deployments are unchanged. Backend work remains ticket-only.
 
 Reviewed on 2026-11-11:
 
@@ -32,7 +32,7 @@ No network-name HINT is sent: SSID access is optional in the contract, and this 
 
 Executed here:
 
-- Swift 6.2.4 compiled and ran the dependency-free protocol package: 18 Swift Testing tests passed, including parameterized malformed packets/destinations, desktop capability/grant checks and a deterministic input sweep.
+- Swift 6.2.4 compiled and ran the dependency-free protocol package: 22 Swift Testing tests passed, including parameterized malformed packets/destinations, desktop capability/grant checks and a deterministic input sweep.
 - The Swift compiler parsed all app/test source files. This does not type-check Apple-framework calls or compile an iOS application.
 - `npm test` passed all four extraction checks: original hashes, HTTP backend boundary, 12 JavaScript syntax checks and 47 worker cache references. PWA source/cache IDs are unchanged.
 

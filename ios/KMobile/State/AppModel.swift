@@ -114,6 +114,7 @@ final class AppModel {
             let enrollment = GatewayClient(profile: profile, enrollmentCode: kind == .companion ? certificateCode : nil)
             defer { enrollment.cancel() }
             let response = try await enrollment.post("/api/pair", body: ["pin": pin, "name": "k-hole iOS"], as: GatewayModels.Pair.self)
+            try Task.checkCancellation()
             guard !response.token.isEmpty, response.device.kind == (kind == .companion ? "companion" : "phone") else {
                 throw GatewayError.refused("This address is for a different connection type. Check the address shown on the computer.")
             }
@@ -156,18 +157,18 @@ final class AppModel {
         }
 
         if includeCompanion {
-        do {
-            // The gateway returns a complete snapshot for a cursor ahead of its sequence.
-            // Full snapshots avoid retaining deleted fields from its sparse patch feed.
-            let snapshot = try await client.get("/api/companion/events?since=999999999999&wait=0", as: GatewayModels.Companion.self)
-            guard current == generation, !Task.isCancelled else { return }
-            companion = snapshot
-            companionError = nil
-        } catch {
-            guard current == generation, !Task.isCancelled else { return }
-            companion = nil
-            companionError = error.localizedDescription
-        }
+            do {
+                // The gateway returns a complete snapshot for a cursor ahead of its sequence.
+                // Full snapshots avoid retaining deleted fields from its sparse patch feed.
+                let snapshot = try await client.get("/api/companion/events?since=999999999999&wait=0", as: GatewayModels.Companion.self)
+                guard current == generation, !Task.isCancelled else { return }
+                companion = snapshot
+                companionError = nil
+            } catch {
+                guard current == generation, !Task.isCancelled else { return }
+                companion = nil
+                companionError = error.localizedDescription
+            }
         }
         if selected?.kind == .computer {
             do {
@@ -184,6 +185,8 @@ final class AppModel {
     }
 
     func monitor(includeCompanion: Bool, interactive: Bool) async {
+        // Keychain may have been locked during a background relay launch.
+        if client == nil, selected != nil, !interacting { select(selectedID) }
         var failures = 0
         while !Task.isCancelled {
             await refresh(includeCompanion: includeCompanion)

@@ -27,6 +27,9 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
 
     @ObservationIgnored private let session = ASAccessorySession()
     @ObservationIgnored private var activated = false
+    @ObservationIgnored private var activating = false
+    @ObservationIgnored private var reconnectTask: Task<Void, Never>?
+    @ObservationIgnored private var reconnectAttempts = 0
     @ObservationIgnored private var pendingPicker = false
     @ObservationIgnored private var central: CBCentralManager?
     @ObservationIgnored private var peripheral: CBPeripheral?
@@ -50,11 +53,9 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     override init() {
         super.init()
         savedRelay = UserDefaults.standard.string(forKey: "accessory.relay.id") != nil
-        session.activate(on: .main) { [weak self] event in
-            MainActor.assumeIsolated { self?.accessoryEvent(event) }
-        }
         // Recreate the central on launch for CoreBluetooth restoration only for a saved relay.
         if savedRelay {
+            activateSession()
             relayEnabled = UserDefaults.standard.bool(forKey: "accessory.relay.enabled")
             if relayEnabled {
                 wantedID = UserDefaults.standard.string(forKey: "accessory.relay.id").flatMap(UUID.init(uuidString:))
@@ -62,10 +63,28 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             }
         }
     }
+    private func activateSession() {
+        guard !activated, !activating else { return }
+        activating = true
+        session.activate(on: .main) { [weak self] event in
+            MainActor.assumeIsolated { self?.accessoryEvent(event) }
+        }
+    }
+    private func scheduleReconnect() {
+        reconnectTask?.cancel()
+        reconnectAttempts = min(reconnectAttempts + 1, 6)
+        let delay = min(30, 1 << (reconnectAttempts - 1))
+        status = "Board disconnected. Reconnecting shortly…"
+        reconnectTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self, self.relayEnabled else { return }
+            self.connectKnown()
+        }
+    }
     private func accessoryEvent(_ event: ASAccessoryEvent) {
         switch event.eventType {
         case .activated:
-            activated = true
+            activating = false; activated = true
             if pendingPicker { pendingPicker = false; showPicker() }
         case .accessoryAdded, .accessoryChanged:
             guard pendingPicker, let accessory = event.accessory, let id = accessory.bluetoothIdentifier else { return }
@@ -89,7 +108,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         mode = nextMode
         error = nil; joinedAddress = nil
         pendingPicker = true
-        if activated { showPicker() }
+        if activated { showPicker() } else { activateSession() }
     }
     private func showPicker() {
         let descriptor = ASDiscoveryDescriptor()
@@ -155,6 +174,8 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     }
     func disconnect() {
         pendingPicker = false
+        reconnectTask?.cancel(); reconnectTask = nil
+        reconnectAttempts = 0
         relayEnabled = false
         UserDefaults.standard.set(false, forKey: "accessory.relay.enabled")
         wantedID = nil
@@ -227,6 +248,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     }
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         guard self.peripheral === peripheral else { return }
+        reconnectTask?.cancel(); reconnectAttempts = 0
         resetTransport()
         armTimeout("The board did not finish connecting. Confirm the pairing numbers on both devices and try again.")
         peripheral.discoverServices([mode == .relay ? Self.relayService : Self.setupService])
@@ -236,7 +258,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         guard self.peripheral === peripheral else { return }
         self.peripheral = nil; resetTransport()
         self.error = error?.localizedDescription ?? "Could not connect to the board."
-        if mode == .relay && relayEnabled { connectKnown() }
+        if mode == .relay && relayEnabled { scheduleReconnect() }
     }
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
         if retiring.remove(peripheral.identifier) != nil { connectKnown(); return }
@@ -244,7 +266,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         self.peripheral = nil; resetTransport()
         if joinedAddress != nil { status = "Wi-Fi connected"; return }
         status = "Board disconnected"
-        if mode == .relay && relayEnabled { connectKnown() }
+        if mode == .relay && relayEnabled { scheduleReconnect() }
         else if working { self.error = "The board disconnected during setup. Check its screen before retrying." }
     }
     func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
@@ -327,8 +349,9 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
                 peripheral.writeValue(data, for: rx, type: .withoutResponse)
                 return true
             }, changed: { [weak self] count in
-                self?.streams = count
-                self?.status = count > 0 ? "Relay connected" : "Waiting for board traffic…"
+                guard let self, self.streams != count else { return }
+                self.streams = count
+                self.status = count > 0 ? "Relay connected" : "Waiting for board traffic…"
             }, failed: { [weak self] message in self?.fail(message) })
             peripheral.setNotifyValue(true, for: tx)
         } else if characteristic === tx { relay?.receive(data) }
