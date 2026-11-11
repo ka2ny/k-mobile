@@ -1,0 +1,160 @@
+name: iOS checks and IPA
+
+on:
+  pull_request:
+    paths: ['ios/**', '.github/**', 'public/**', 'tests/**', 'scripts/**', 'source.json']
+  push:
+    branches: [main]
+    paths: ['ios/**', '.github/**', 'public/**', 'tests/**', 'scripts/**', 'source.json']
+  workflow_dispatch:
+    inputs:
+      export_method:
+        description: 'Unsigned IPA for signing later, or optional signed export'
+        type: choice
+        required: true
+        default: unsigned
+        options: [unsigned, ad-hoc, app-store]
+      marketing_version:
+        description: 'Optional version override, e.g. 0.1.0'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  BUNDLE_FROZEN: 'true'
+  FASTLANE_SKIP_UPDATE_CHECK: 'true'
+  FASTLANE_HIDE_CHANGELOG: 'true'
+  FASTLANE_OPT_OUT_USAGE: 'true'
+  DEVELOPER_DIR: ${{ vars.IOS_DEVELOPER_DIR || '/Applications/Xcode.app/Contents/Developer' }}
+
+jobs:
+  test:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1
+        with:
+          ruby-version: '3.3'
+          bundler: '2.5.22'
+      - name: Install Fastlane
+        working-directory: ios
+        run: bundle install --jobs 4 --retry 3
+      - name: Check generated project and CI helpers
+        run: |
+          python3 ios/generate_project.py
+          git diff --exit-code -- ios/KMobile.xcodeproj
+          python3 -m unittest discover -s ios/ci -p 'test_*.py'
+          ruby -c ios/fastlane/Fastfile
+      - name: Check extracted PWA
+        run: npm test
+      - name: Test portable Swift contracts
+        run: swift test --package-path ios
+      - name: Select SDK and simulator
+        run: python3 ios/ci/preflight.py
+      - name: Run native simulator tests
+        working-directory: ios
+        run: bundle exec fastlane ios test
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-tests-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            ios/build/test-results/
+            ios/Gemfile.lock
+          retention-days: 14
+          if-no-files-found: warn
+
+  unsigned_ipa:
+    # PR/push builds need no secrets. A manual run defaults to this mode too.
+    if: github.event_name != 'workflow_dispatch' || inputs.export_method == 'unsigned'
+    needs: test
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'app.khole.mobile' }}
+      IOS_EXPORT_METHOD: unsigned
+      IOS_IPA_NAME: KMobile-unsigned.ipa
+      IOS_MARKETING_VERSION: ${{ inputs.marketing_version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1
+        with:
+          ruby-version: '3.3'
+          bundler: '2.5.22'
+      - name: Install Fastlane
+        working-directory: ios
+        run: bundle install --jobs 4 --retry 3
+      - name: Build and pack unsigned device IPA
+        working-directory: ios
+        run: bundle exec fastlane ios unsigned_ipa
+      - name: Record build identity and checksums
+        run: |
+          python3 ios/ci/package_evidence.py
+          cp ios/Gemfile.lock ios/build/ipa/Gemfile.lock
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: KMobile-unsigned-${{ github.run_number }}-${{ github.run_attempt }}
+          path: ios/build/ipa/
+          if-no-files-found: error
+          retention-days: 14
+
+  ipa:
+    if: github.event_name == 'workflow_dispatch' && inputs.export_method != 'unsigned' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: test
+    runs-on: xcode-27
+    environment: ios-signing
+    timeout-minutes: 45
+    env:
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'app.khole.mobile' }}
+      IOS_EXPORT_METHOD: ${{ inputs.export_method }}
+      IOS_MARKETING_VERSION: ${{ inputs.marketing_version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1
+        with:
+          ruby-version: '3.3'
+          bundler: '2.5.22'
+      - name: Install Fastlane
+        working-directory: ios
+        run: bundle install --jobs 4 --retry 3
+      - name: Verify SDK
+        run: python3 ios/ci/preflight.py
+      - name: Install temporary signing identity
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: python3 ios/ci/signing.py install
+      - name: Archive and export IPA
+        working-directory: ios
+        run: bundle exec fastlane ios ipa
+      - name: Record build identity and checksums
+        run: |
+          python3 ios/ci/package_evidence.py
+          cp ios/Gemfile.lock ios/build/ipa/Gemfile.lock
+      - name: Remove signing credentials
+        if: always()
+        run: python3 ios/ci/signing.py cleanup
+      - name: Upload IPA and symbols
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: KMobile-${{ inputs.export_method }}-${{ github.run_number }}-${{ github.run_attempt }}
+          path: ios/build/ipa/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,187 @@
+/* Shared mobile material. Agents already has the canonical Quiet Glass tokens; the
+   fallback values match that same Graphite preset for Remote, Beam and the hub. */
+@font-face { font-family: 'k-hole Mobile'; src: url('/mobile-sans.woff2') format('woff2'); font-weight: 100 700; font-display: swap; }
+@font-face { font-family: 'k-hole Mobile Mono'; src: url('/mobile-mono.woff2') format('woff2'); font-weight: 100 700; font-display: swap; }
+:root {
+  --bg: var(--q-bg, #181819); --surface1: var(--q-surface-1, #222223); --surface2: var(--q-surface-2, #2a2b2c); --surface3: var(--q-surface-3, #333436); --field: var(--q-field, #181819);
+  --ink: var(--q-ink, #f1f1f3); --ink2: var(--q-ink-2, #d9d9e0); --ink-muted: var(--q-ink-muted, #b6b6c0);
+  --line: var(--q-line, #d9dbe022); --line2: var(--q-line-2, #d9dbe033);
+  --accent: var(--q-accent, #b7d7c2); --accent-tint: var(--q-accent-tint, #b7d7c214); --on-accent: var(--q-on-accent, #17181c); --focus: var(--q-focus, #95dbae);
+  --ok: var(--q-ok, #35d46a); --warn: var(--q-warn, #f3b549); --fail: var(--q-fail, #f08990);
+  --font: 'k-hole Mobile', 'IBM Plex Sans', system-ui, sans-serif; --mono: 'k-hole Mobile Mono', ui-monospace, monospace;
+  --ease: cubic-bezier(.22,.8,.24,1);
+}
+.mobile-eyebrow { font: 500 12px/1.5 var(--mono); letter-spacing: .05em; color: var(--accent); margin: 0 0 6px; }
+.kh-switch-on { cursor: pointer; min-width: 44px; min-height: 44px; }
+.kh-switch-on:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+dialog.kh-switch { position: fixed; inset: 0; z-index: 2147483000; margin: 0; width: 100%; height: 100dvh; max-width: none; max-height: none; padding: 0; border: 0; background: transparent; color: var(--ink); font: 400 16px/1.5 var(--font); }
+dialog.kh-switch[open] { display: flex; align-items: flex-end; justify-content: center; }
+.kh-switch::backdrop { background: #080a0cb3; }
+.kh-switch-card { width: min(520px, 100%); max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 16px); overflow-y: auto; overscroll-behavior: contain; margin: 0 8px calc(var(--kh-foot) + 8px); padding: 24px 20px 16px; border-radius: 24px; background: var(--surface1); box-shadow: inset 0 1px 0 var(--line2), 0 12px 40px #0006; animation: kh-rise 220ms var(--ease); box-sizing: border-box; }
+.kh-switch-heading { margin: 0 0 16px; font-size: 24px; letter-spacing: -.035em; font-weight: 400; }
+.kh-switch-list { display: flex; flex-direction: column; gap: 4px; }
+.kh-switch-row { display: flex; flex-direction: column; justify-content: center; min-height: 72px; padding: 12px 16px; border-radius: 12px; color: inherit; text-decoration: none; border: 1px solid transparent; }
+a.kh-switch-row:active { background: var(--surface2); }
+.kh-switch-row.here { background: var(--accent-tint); border-color: var(--line); }
+.kh-switch-row.here .kh-switch-name { color: var(--accent); }
+.kh-switch-row.off .kh-switch-name { color: var(--ink-muted); }
+.kh-switch-name { font-size: 18px; font-weight: 500; }
+.kh-switch-what { font-size: 13px; color: var(--ink-muted); }
+.kh-switch-all, .kh-switch-done { display: flex; align-items: center; justify-content: center; min-height: 48px; margin-top: 8px; width: 100%; padding: 8px 16px; border: 0; border-radius: 999px; color: var(--ink2); background: transparent; font: inherit; text-decoration: none; box-sizing: border-box; cursor: pointer; }
+.kh-switch-all { border-top: 1px solid var(--line); border-radius: 0; margin-top: 16px; }
+.kh-switch-done { background: var(--surface3); }
+.kh-switch :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@keyframes kh-rise { from { transform: translateY(12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .kh-switch, .kh-switch-card { animation: none; } }
+
+/* The phone shell sits below each app's own controls. The live desktop retains
+   its exact viewport: its toolbar exposes Apps instead of overlaying navigation. */
+:root {
+  /* A Home Screen app whose window iOS made short by the status bar ends above the home
+     indicator, so nothing at the window's foot needs to keep clear of it there (--kh-short
+     from switch.js; iOS never paints below the short window, so nothing may move into it) */
+  --kh-foot: max(0px, env(safe-area-inset-bottom, 0px) - var(--kh-short-cut));
+  --kh-short-cut: min(var(--kh-short, 0px), env(safe-area-inset-bottom, 0px));
+}
+.kh-mobile-nav { position: fixed; z-index: 100; bottom: 0; left: 0; right: 0; display: flex; justify-content: center; gap: 4px; padding: 8px max(16px, env(safe-area-inset-right)) calc(8px + var(--kh-foot)) max(16px, env(safe-area-inset-left)); background: var(--bg); border-top: 1px solid var(--line); font: 12px/1.3 var(--font); }
+.kh-mobile-nav > * { flex: 1; max-width: 160px; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; border-radius: 12px; background: transparent; color: var(--ink-muted); text-decoration: none; font: inherit; cursor: pointer; }
+.kh-mobile-nav svg { width: 21px; height: 21px; }
+.kh-mobile-nav [aria-current], .kh-mobile-nav > :active { color: var(--accent); background: var(--accent-tint); }
+.kh-mobile-nav :focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.kh-app-search { box-sizing: border-box; width: 100%; min-height: 48px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid var(--line2); border-radius: 12px; background: var(--field); color: var(--ink); font: inherit; }
+.kh-switch-settings { width: 100%; min-height: 48px; margin-top: 12px; background: transparent; border: 0; border-top: 1px solid var(--line); color: var(--accent); font: inherit; cursor: pointer; }
+.kh-empty { padding: 20px; text-align: center; color: var(--ink-muted); }
+.kh-setting { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.kh-setting > span { flex: 1; min-width: 0; }
+.kh-setting strong, .kh-setting small { display: block; }
+.kh-setting strong { font-weight: 500; font-size: 15px; }
+.kh-setting small { color: var(--ink-muted); font-size: 12px; margin-top: 4px; }
+.kh-setting select { font: inherit; font-size: 14px; color: var(--ink); background: var(--surface2); border: 1px solid var(--line2); border-radius: 8px; min-height: 44px; max-width: 115px; padding: 8px; }
+.kh-setting input[type='checkbox'] { flex: 0 0 22px; width: 22px; height: 22px; min-height: 22px; margin: 0 11px; accent-color: var(--accent); }
+.kh-settings h3 { font: 500 12px/1.5 var(--mono); color: var(--ink-muted); margin: 24px 0 0; }
+#kh-settings-saved { font-size: 12px; color: var(--ink-muted); margin: 16px 0; }
+html[data-mobile-shell='beam'] .app { padding-bottom: calc(160px + env(safe-area-inset-bottom)); }
+html[data-mobile-shell='beam'] .toast { bottom: calc(80px + env(safe-area-inset-bottom) - var(--kh-short-cut)); }
+html[data-mobile-shell='agents'] .tabs { bottom: calc(72px + var(--q-safe-bottom) - var(--kh-short-cut)); }
+html[data-mobile-shell='agents'] .view { padding-bottom: calc(var(--tabs-h) + var(--q-safe-bottom) + 112px); }
+html[data-mobile-shell='agents'] .pad { bottom: calc(var(--tabs-h) + var(--q-safe-bottom) + 88px - var(--kh-short-cut)); }
+html[data-mobile-shell='agents'] .undo, html[data-mobile-shell='agents'] .toast { bottom: calc(var(--tabs-h) + var(--q-safe-bottom) + 100px - var(--kh-short-cut)); }
+html[data-mobile-shell='agents'] .latest { bottom: calc(var(--pad-h, 160px) + var(--tabs-h) + var(--q-safe-bottom) + 100px - var(--kh-short-cut)); }
+html[data-mobile-shell='agents'] body.in-agent #agent { min-height: 100dvh; padding-bottom: calc(var(--tabs-h) + var(--q-safe-bottom) + 88px); }
+html[data-mobile-shell='remote'] .screen { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+html[data-mobile-shell='remote']:has(#stream:not([hidden])) .kh-mobile-nav { display: none; }
+html:is([data-mobile-motion='off'], [data-mobile-motion='reduced']) :is(.kh-switch-card, .glyph, .section, .breathe, .app, .panel, .toast, .file-open, dialog.sheet, button > svg) { animation: none !important; transition: none !important; }
+html:is([data-mobile-motion='off'], [data-mobile-motion='reduced']) { scroll-behavior: auto; }
+
+.kh-switch-row { flex-direction: row; align-items: center; justify-content: flex-start; gap: 16px; }
+.kh-app-icon { flex: none; width: 26px; height: 26px; fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.kh-app-copy { display: flex; flex-direction: column; min-width: 0; }
+.kh-switch-row.off .kh-app-icon { stroke: var(--ink-muted); }
+html:is([data-mobile-motion='off'], [data-mobile-motion='reduced']) :is(.pill.working, .toast.busy .toast-words)::before { animation: none !important; }
+
+/* Shared sheet proportions: aligned content, paired footer actions, no tall stack of exits. */
+.kh-switch-card { width: min(480px, calc(100% - 16px)); margin-inline: 8px; padding: 22px 20px 16px; border-radius: 20px; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: 12px; }
+.kh-switch-card > * { grid-column: 1 / -1; min-width: 0; }
+.kh-switch-heading { font-size: 26px; line-height: 1.25; margin-bottom: 20px; }
+.kh-switch-row { min-height: 76px; padding: 12px; }
+.kh-switch-name { font-size: 16px; }
+.kh-switch-what { font-size: 12px; }
+.kh-switch-card > .kh-switch-all { grid-column: 1; border: 0; margin-top: 16px; border-radius: 10px; font-size: 14px; padding-inline: 8px; }
+.kh-switch-card > .kh-switch-done { grid-column: 2; margin-top: 16px; border-radius: 10px; font-size: 14px; padding-inline: 8px; }
+.kh-setting { padding-block: 14px; }
+.kh-settings h3 { margin-top: 20px; }
+#kh-settings-saved { margin-bottom: 0; }
+.kh-mobile-nav > * { border-radius: 10px; }
+@media (max-height:500px) { .kh-switch-card { width: min(600px,calc(100% - 32px)); } }
+
+.kh-switch-card > .kh-switch-files, .kh-switch-card > .kh-switch-settings { margin-top: 12px; min-height: 48px; display: flex; align-items: center; justify-content: center; border: 0; border-top: 1px solid var(--line); color: var(--accent); font: inherit; font-size: 14px; text-decoration: none; }
+.kh-switch-card > .kh-switch-files { grid-column: 1; }
+.kh-switch-card > .kh-switch-settings { grid-column: 2; }
+
+/* Mobile finish: deliberate type, a small colour preview, and quiet selected states. */
+.kh-switch-card { background: linear-gradient(160deg, var(--surface2), var(--surface1) 30%); box-shadow: inset 0 1px 0 var(--line2), 0 18px 64px #0008; }
+.kh-switch-heading { font-weight: 500; letter-spacing: -.04em; }
+.kh-app-search { border: 0; box-shadow: inset 0 0 0 1px var(--line); border-radius: 10px; }
+.kh-app-search::placeholder { color: var(--ink-muted); opacity: 1; }
+.kh-switch-row { border-radius: 10px; gap: 18px; }
+.kh-switch-row:not(.here) + .kh-switch-row:not(.here) { border-top-color: var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
+.kh-switch-what { line-height: 1.55; margin-top: 3px; }
+.kh-app-icon { padding: 10px; box-sizing: content-box; background: var(--accent-tint); border-radius: 12px; }
+.kh-palettes { min-width: 0; margin: 0; padding: 0 0 18px; border: 0; border-bottom: 1px solid var(--line); }
+.kh-palettes legend { font-size: 15px; font-weight: 500; padding: 0; margin-bottom: 14px; }
+.kh-palette-choices { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; }
+.kh-palette-choices button { min-width: 44px; min-height: 68px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; padding: 8px 2px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--ink-muted); font: 400 11px/1 var(--font); cursor: pointer; }
+.kh-palette-choices [aria-pressed='true'] { color: var(--ink); border-color: var(--line2); background: var(--accent-tint); }
+.kh-swatch { width: 22px; height: 22px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 1px 0 #fff6; display: grid; place-items: center; color: #17181c; }
+[aria-pressed='true'] > .kh-swatch::after { content: ''; width: 4px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-1px) rotate(40deg); }
+.kh-setting select { border: 0; background: transparent; color: var(--accent); padding-right: 0; text-align: right; }
+.kh-setting input[type='checkbox'] { appearance: none; padding: 0; box-sizing: border-box; display: grid; place-items: center; border: 1px solid var(--line2); border-radius: 7px; background: var(--field); color: var(--on-accent); }
+.kh-setting input[type='checkbox']:checked { background: var(--accent); border-color: transparent; }
+.kh-setting input[type='checkbox']:checked::after { content: ''; width: 4px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-1px) rotate(40deg); }
+.kh-settings h3 { letter-spacing: .02em; }
+.kh-mobile-nav { box-shadow: 0 -8px 24px #0001; }
+.kh-mobile-nav > * { transition: color 140ms, background-color 140ms; }
+.kh-mobile-nav [aria-current] { background: transparent; color: var(--accent); }
+.kh-mobile-nav [aria-current] svg { filter: drop-shadow(0 0 5px var(--accent-tint)); }
+@media (forced-colors:active) { .kh-setting input[type='checkbox'] { appearance: auto; } .kh-setting input[type='checkbox']::after { display: none; } .kh-swatch { border: 1px solid CanvasText; } }
+@media (prefers-reduced-motion:reduce) { .kh-mobile-nav > * { transition: none; } }
+html:is([data-mobile-motion='off'], [data-mobile-motion='reduced']) .kh-mobile-nav > * { transition: none; }
+
+.kh-switch button:active { transform: none; }
+
+/* Sheet travel carries navigation; colour and a short mark reveal carry selection. */
+.kh-switch-card { animation: kh-sheet-in 260ms var(--ease) both; }
+.kh-switch::backdrop { animation: kh-backdrop-in 180ms ease-out both; }
+.kh-switch-list, .kh-settings { animation: kh-content-in 220ms 35ms var(--ease) both; }
+.kh-switch-swap .kh-switch-card { animation: kh-settings-in 220ms var(--ease) both; }
+.kh-switch-swap::backdrop { animation: none; }
+.kh-switch[data-closing] .kh-switch-card { pointer-events: none; }
+.kh-switch[data-closing]::backdrop { animation: kh-backdrop-out 140ms ease-in forwards; }
+.kh-palette-choices button { transition: background-color 160ms, border-color 160ms, color 160ms; }
+.kh-palette-choices [aria-pressed='true'] .kh-swatch::after, .kh-setting input:checked::after { animation: kh-confirm-in 160ms ease-out; }
+.kh-mobile-nav svg { transition: transform 140ms var(--ease); }
+.kh-mobile-nav > :active svg { transform: translateY(1px); }
+@keyframes kh-sheet-in { from { opacity: .2; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes kh-settings-in { from { opacity: .5; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@keyframes kh-content-in { from { opacity: .3; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes kh-backdrop-in { from { background-color: #080a0c00; } to { background-color: #080a0cb3; } }
+@keyframes kh-backdrop-out { from { background-color: #080a0cb3; } to { background-color: #080a0c00; } }
+@keyframes kh-confirm-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion:reduce) {
+  .kh-switch *, .kh-switch *::after, .kh-switch::backdrop, .kh-mobile-nav svg { animation: none !important; transition: none !important; }
+  .kh-mobile-nav > :active svg { transform: none; }
+}
+html:is([data-mobile-motion='off'],[data-mobile-motion='reduced']) :is(.kh-switch *, .kh-mobile-nav svg), html:is([data-mobile-motion='off'],[data-mobile-motion='reduced']) .kh-switch *::after, html:is([data-mobile-motion='off'],[data-mobile-motion='reduced']) .kh-switch::backdrop { animation: none !important; transition: none !important; }
+html:is([data-mobile-motion='off'],[data-mobile-motion='reduced']) .kh-mobile-nav > :active svg { transform: none; }
+
+/* Vector icons: hairline ink with one accent detail, never a plate (K's set, configs/icons/vector). */
+.kh-app-icon, .kh-nav-icon, .kh-switch-x svg { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.kh-app-icon [data-accent], .kh-nav-icon [data-accent] { stroke: var(--accent); }
+.kh-app-icon { width: 30px; height: 30px; padding: 0; background: none; border-radius: 0; color: var(--ink); stroke: currentColor; stroke-width: 1.2; }
+.kh-switch-row.off .kh-app-icon { color: var(--ink-muted); stroke: currentColor; }
+.kh-switch-row.off .kh-app-icon [data-accent] { stroke: var(--ink-muted); }
+.kh-mobile-nav .kh-nav-icon { width: 24px; height: 24px; stroke-width: 1.3; }
+.kh-mobile-nav [aria-current] .kh-nav-icon { filter: none; }
+
+/* The sheet's head: its title, and a close button in the corner. */
+.kh-switch-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -6px -8px 14px 0; }
+.kh-switch-head .kh-switch-heading { margin: 0; }
+.kh-switch-card > .kh-switch-all { grid-column: 1 / -1; }
+.kh-switch-x.kh-switch-done { flex: none; grid-column: auto; width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0; display: grid; place-items: center; border-radius: 50%; background: var(--surface3); color: var(--ink2); }
+.kh-switch-x svg { width: 20px; height: 20px; stroke-width: 1.5; }
+.kh-switch-x:active { background: var(--surface2); }
+
+/* What the phone hands the app (Settings > This screen). */
+.kh-safe-probe { position: fixed; visibility: hidden; pointer-events: none; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+.kh-screen-facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 12px 0 0; font-size: 13px; }
+.kh-screen-facts dt { color: var(--ink-muted); }
+.kh-screen-facts dd { margin: 0; text-align: right; font: 400 13px/1.5 var(--mono); color: var(--ink2); }
+
+/* The page runs to the screen's foot: the nav floats over it and nothing is left below. */
+html, body { min-height: 100%; background-color: var(--bg); }
+html { min-height: 100dvh; }
+.kh-switch-heading:focus { outline: none; }
+
+/* Beam's page, which scrolls, got its whole window from iOS while Home's, which fit, came up
+   short: once a short window is seen (switch.js), the page is given room to scroll. */
+html.kh-short-seen:is([data-mobile-shell="home"], [data-mobile-shell="beam"]) body { min-height: calc(100dvh + 1px); }

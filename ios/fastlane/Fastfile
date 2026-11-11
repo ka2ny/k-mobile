@@ -1,0 +1,112 @@
+require "json"
+require "shellwords"
+
+ROOT = File.expand_path("..", __dir__)
+
+def required(name)
+  value = ENV.fetch(name, "")
+  UI.user_error!("Missing #{name}") if value.empty?
+  value
+end
+
+def build_setting(name, value)
+  "#{name}=#{Shellwords.escape(value.to_s)}"
+end
+
+def ci_number
+  # Dotted numeric CFBundleVersion; retries get a distinct version too.
+  value = ENV.fetch("IOS_BUILD_NUMBER", "#{ENV.fetch('GITHUB_RUN_NUMBER', '1')}.#{ENV.fetch('GITHUB_RUN_ATTEMPT', '1')}")
+  UI.user_error!("Invalid IOS_BUILD_NUMBER") unless value.match?(/\A[1-9][0-9]*(?:\.[0-9]+){0,2}\z/)
+  value
+end
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Run native tests on the simulator selected by CI preflight"
+  lane :test do
+    run_tests(
+      project: File.join(ROOT, "KMobile.xcodeproj"),
+      scheme: "KMobile",
+      destination: "platform=iOS Simulator,id=#{required('SIMULATOR_UDID')}",
+      clean: true,
+      derived_data_path: File.join(ROOT, "build", "test-derived"),
+      output_directory: File.join(ROOT, "build", "test-results"),
+      result_bundle: true,
+      xcargs: "CODE_SIGNING_ALLOWED=NO",
+      xcodebuild_formatter: ""
+    )
+  end
+
+  desc "Build a device archive without Apple credentials and package an IPA for signing later"
+  lane :unsigned_ipa do
+    bundle_id = ENV.fetch("IOS_BUNDLE_ID", "app.khole.mobile")
+    UI.user_error!("Invalid IOS_BUNDLE_ID") unless bundle_id.match?(/\A[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\z/)
+    settings = {
+      "CODE_SIGNING_ALLOWED" => "NO", "CODE_SIGNING_REQUIRED" => "NO",
+      "CODE_SIGN_IDENTITY" => "", "DEVELOPMENT_TEAM" => "",
+      "PRODUCT_BUNDLE_IDENTIFIER" => bundle_id,
+      "ARCHS" => "arm64", "ONLY_ACTIVE_ARCH" => "NO",
+      "CURRENT_PROJECT_VERSION" => ci_number
+    }
+    version = ENV.fetch("IOS_MARKETING_VERSION", "")
+    unless version.empty?
+      UI.user_error!("Invalid IOS_MARKETING_VERSION") unless version.match?(/\A[0-9]+(?:\.[0-9]+){1,2}\z/)
+      settings["MARKETING_VERSION"] = version
+    end
+    archive = File.join(ROOT, "build", "KMobile-unsigned.xcarchive")
+    output = File.join(ROOT, "build", "ipa", "KMobile-unsigned.ipa")
+    build_app(
+      project: File.join(ROOT, "KMobile.xcodeproj"), scheme: "KMobile", configuration: "Release",
+      clean: true, sdk: "iphoneos", destination: "generic/platform=iOS",
+      archive_path: archive, derived_data_path: File.join(ROOT, "build", "unsigned-derived"),
+      buildlog_path: File.join(ROOT, "build", "logs"),
+      skip_codesigning: true, skip_package_ipa: true, skip_profile_detection: true,
+      xcargs: settings.map { |name, value| build_setting(name, value) }.join(" "),
+      xcodebuild_formatter: ""
+    )
+    # Do not use exportArchive: that path requires Apple's signing/provisioning setup.
+    sh("python3", File.join(ROOT, "ci", "package_unsigned.py"), archive, output)
+    UI.success("Unsigned IPA ready for your signing step: #{output}")
+  end
+
+  desc "Archive and export a manually signed IPA; never uploads to Apple"
+  lane :ipa do
+    signing = JSON.parse(File.read(required("IOS_SIGNING_METADATA")))
+    method = required("IOS_EXPORT_METHOD")
+    UI.user_error!("Unsupported export method") unless ["ad-hoc", "app-store"].include?(method)
+    UI.user_error!("Signing was prepared for a different method") unless signing.fetch("method") == method
+    settings = {
+      "CODE_SIGN_STYLE" => "Manual",
+      "DEVELOPMENT_TEAM" => signing.fetch("team"),
+      "PRODUCT_BUNDLE_IDENTIFIER" => signing.fetch("bundle_id"),
+      "PROVISIONING_PROFILE_SPECIFIER" => signing.fetch("uuid"),
+      "CODE_SIGN_IDENTITY" => signing.fetch("identity"),
+      "CURRENT_PROJECT_VERSION" => ci_number
+    }
+    settings["MARKETING_VERSION"] = ENV["IOS_MARKETING_VERSION"] unless ENV.fetch("IOS_MARKETING_VERSION", "").empty?
+    if settings["MARKETING_VERSION"] && !settings["MARKETING_VERSION"].match?(/\A[0-9]+(?:\.[0-9]+){1,2}\z/)
+      UI.user_error!("Invalid IOS_MARKETING_VERSION")
+    end
+    build_app(
+      project: File.join(ROOT, "KMobile.xcodeproj"), scheme: "KMobile", configuration: "Release",
+      clean: true, destination: "generic/platform=iOS",
+      archive_path: File.join(ROOT, "build", "KMobile.xcarchive"),
+      derived_data_path: File.join(ROOT, "build", "archive-derived"),
+      output_directory: File.join(ROOT, "build", "ipa"), output_name: "KMobile.ipa",
+      buildlog_path: File.join(ROOT, "build", "logs"),
+      export_method: method, export_team_id: signing.fetch("team"),
+      skip_profile_detection: true,
+      export_options: {
+        method: method == "ad-hoc" ? "release-testing" : "app-store-connect",
+        destination: "export", signingStyle: "manual", teamID: signing.fetch("team"),
+        signingCertificate: signing.fetch("identity"),
+        provisioningProfiles: { signing.fetch("bundle_id") => signing.fetch("uuid") },
+        manageAppVersionAndBuildNumber: false
+      },
+      xcargs: settings.map { |name, value| build_setting(name, value) }.join(" "),
+      xcodebuild_formatter: ""
+    )
+    UI.success("IPA exported to ios/build/ipa/KMobile.ipa. Nothing was uploaded to Apple.")
+  end
+end

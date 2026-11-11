@@ -1,0 +1,12 @@
+{
+  "name": "k-hole-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local extraction of the k-hole mobile PWA",
+  "scripts": {
+    "start": "python3 scripts/serve.py",
+    "test": "python3 -m unittest discover -s tests -p \"test_*.py\"",
+    "check:assets": "node tests/assets.cjs",
+    "test:performance": "node tests/mobile_performance.cjs"
+  }
+}

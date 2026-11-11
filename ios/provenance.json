@@ -1,0 +1,177 @@
+{
+  "native_sources": "New, independently authored SwiftUI client; not extraction-baseline files.",
+  "icon": {
+    "source": "public/remote/icon.svg",
+    "source_sha256": "f7a40608136e95d747c70516be624f9efe8dcba850797ad2bef0490189139ef4",
+    "output": "ios/KMobile/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+    "sha256": "f5546d1d5308bce071a80ae7ef9b644e0d57305b1cc457935bbea44cadd8702d",
+    "transform": "CairoSVG 2.9.1 vector rasterization at 1024 \u00d7 1024; design unchanged",
+    "notice": "../LICENSE.md"
+  },
+  "contracts": [
+    {
+      "source": "public/remote/app.js and public/assistant/assistant.js",
+      "baseline": "../source.json"
+    },
+    {
+      "repository": "ka2ny/k-flow-os",
+      "commit": "4097fe89962ad43a5d7c4bcb82b1eb60d8f16c02",
+      "path": "remote/web/khole-web",
+      "sha256_at_inspection": "8776b68aeaeaeb9bfd15e02f055138518b1834b799523386d81fe34c6f7829f9",
+      "use": "Read-only inspection of companion v1 and certificate-code contract; differs from the PWA extraction revision."
+    },
+    {
+      "repository": "ka2ny/k-chain-os",
+      "commit": "9945c85939afa38bde91f10197cbfd73e817d882",
+      "use": "Initial main-branch audit only; its TODOs do not describe the newer board-pass implementation. Superseded for accessory capability assessment by the board-pass entry below. No firmware changes.",
+      "files": [
+        {
+          "path": "k-moon/README.md",
+          "sha256": "2d17010e18782ebe6a652a3be37d5c8e7428e4122f173995f4d52e628236ce66"
+        },
+        {
+          "path": "k-moon/main/link/link.c",
+          "sha256": "d370ac4627e6226b05cd4591f5a3c20de869146a1dd6ce5a0559b5b520938091"
+        },
+        {
+          "path": "k-moon/main/link/link.h",
+          "sha256": "1b33682b3f37459603d487857441f104760c314cb6c52ebffb53fa048c22d880"
+        },
+        {
+          "path": "k-moon/main/CMakeLists.txt",
+          "sha256": "05f486a8ca3af8efa53695031c6345e624164fe44fffaf67c7cbe2b603b6383d"
+        },
+        {
+          "path": "k-moon/main/Kconfig.projbuild",
+          "sha256": "71808a8b840c71aac16bf09fcdf08d99d5589ebebe91a84d60b6b66e56392887"
+        },
+        {
+          "path": "k-moon/main/idf_component.yml",
+          "sha256": "19f878355e10c7c67b122390cdc625d233d2ed43efc20829be885971adcab904"
+        },
+        {
+          "path": "k-moon/sdkconfig.defaults",
+          "sha256": "5b9a2c810778f853ca0f44e4e8f39b2142d40c9498ae5e9dbe60aff2357a8256"
+        }
+      ]
+    },
+    {
+      "repository": "ka2ny/k-chain-os",
+      "branch": "board-pass",
+      "commit": "7b53b6fd8ff7ecd8250d8098515bec1e022f03af",
+      "use": "Read-only active firmware audit: BLE/SoftAP Security 1 provisioning and desktop certificate enrollment exist. Native iOS contract/qualification tracked in issue 4. No firmware modifications.",
+      "issue": "https://github.com/ka2ny/k-chain-os/issues/4",
+      "files": [
+        {
+          "path": "k-moon/main/link/prov.c",
+          "sha256": "bde01a9dc233ce3c7a4f0ecaa69ff8dccaad791740a6597c9959b3af28c9efcc"
+        },
+        {
+          "path": "k-moon/main/link/link.c",
+          "sha256": "4c7079d4c098ed7b9beb0655c2252fa7d82f749b82a8b0a53c395b746f480861"
+        },
+        {
+          "path": "k-moon/main/link/link.h",
+          "sha256": "b61158123d608b932b11333482ecd4b952bee61e461c83d35c4b9813cc791dbc"
+        },
+        {
+          "path": "k-moon/main/ui/scr_settings.c",
+          "sha256": "0aec9da23394d71ff6ebaea43d8706b4e9afa918229c7004cd9509964c6fa81e"
+        },
+        {
+          "path": "k-moon/main/Kconfig.projbuild",
+          "sha256": "6c7bf9b91424bdd4c0a8ca6c279d4d3f3c2352283ba3f27a3c43a5bb5f54d18b"
+        },
+        {
+          "path": "k-moon/docs/desktop-handoff.md",
+          "sha256": "acaef569d9ce432cef2444da72442dc221d7a088a7bf65a469325939793ded5b"
+        }
+      ]
+    },
+    {
+      "repository": "ka2ny/k-flow-os",
+      "branch": "main",
+      "commit": "3c87930c6afb63c7744f0acf7c1237eb8dce06a9",
+      "path": "remote/web/khole-web",
+      "sha256_at_inspection": "616d66431a7b7530b433c4eb3b3e20942cbe31bf34f178d66c8ba7122397b752",
+      "use": "Read-only current gateway audit: phone.code absent from companion command allowlist. Issue 45 created; no OS code/configuration modifications.",
+      "issue": "https://github.com/ka2ny/k-flow-os/issues/45"
+    },
+    {
+      "repository": "ka2ny/k-chain-os",
+      "branch": "board-pass",
+      "commit": "6147f46b1da23b807af18c539367c52e2150b118",
+      "use": "Current native setup and relay implementation contracts; read-only, no firmware modifications.",
+      "files": [
+        {
+          "path": "k-moon/docs/phone-setup.md",
+          "sha256": "5d566c831e4ccc0671b4ae730bcbbd556de40d2336e839bf2ba8198cbd7101f7"
+        },
+        {
+          "path": "k-moon/docs/phone-link.md",
+          "sha256": "66ecab0df8f938a74a4df189469dbe3bb3d5d83b2a8b4620d37bdc9631bb8ef4"
+        },
+        {
+          "path": "k-moon/docs/fixtures/phone-setup.json",
+          "sha256": "cc0cea5e797724fe1934aff937dbde342c415d4fa5e6896703bcace7acd8e2c4"
+        },
+        {
+          "path": "k-moon/docs/fixtures/phone-link.json",
+          "sha256": "3971541237ed6a09b2e4ebace9d1f6fb5bc2bbc66b78a8e145a74bb034b35a06"
+        },
+        {
+          "path": "k-moon/main/link/phone_link.c",
+          "sha256": "8688c1b44507a3be4bf7476ef7a9150162f2c0263f4b984b470b8a75eb630a1a"
+        },
+        {
+          "path": "k-moon/main/link/prov.c",
+          "sha256": "70124d57361640f9ef4a6fc94e5dbca01b40ae8ac3404d8e3126edec7b184dab"
+        }
+      ]
+    },
+    {
+      "repository": "ka2ny/k-flow-os",
+      "branch": "main",
+      "commit": "444ebf11eede6163addded8dd76f633a400de659",
+      "path": "remote/web/khole-web",
+      "sha256_at_inspection": "18dae706d9effb12837c14176cf93a12ac03b1888459b96d492fb7870076f026",
+      "use": "Current S6 association v1 contract. Source implementation does not establish deployment; runtime capability required.",
+      "issues": [
+        "https://github.com/ka2ny/k-flow-os/issues/45",
+        "https://github.com/ka2ny/k-flow-os/issues/46"
+      ]
+    }
+  ],
+  "security_reference": {
+    "repository": "espressif/esp-idf",
+    "ref": "v5.5.5",
+    "use": "Protocol definitions and Python Security1 reference read only; no implementation code copied or library bundled.",
+    "files": [
+      {
+        "path": "components/protocomm/proto/session.proto",
+        "sha256": "4388992ab23cb527c0d53a0feac64c7bf3f92d99e3127f73d1ca821a2e181533"
+      },
+      {
+        "path": "components/protocomm/proto/sec1.proto",
+        "sha256": "a36bfcfe67d2c9c60d94673d02d6de2f28470445768d6a2c42a70fdd17f2c280"
+      },
+      {
+        "path": "components/wifi_provisioning/proto/wifi_config.proto",
+        "sha256": "6a2e447e897e75d9ee64c2ea196dfd16ba12a0c929983e4c00130c1ef0c39b8f"
+      },
+      {
+        "path": "components/wifi_provisioning/proto/wifi_scan.proto",
+        "sha256": "9acccbc89e4e9430ada7294788549ad0d6cb51ab4c55f885a280fbae5ccbc4c9"
+      },
+      {
+        "path": "components/wifi_provisioning/proto/wifi_ctrl.proto",
+        "sha256": "24ec1b1cec1d360f7dbe796123437797141b335c70888480c0ed706b865a2e26"
+      },
+      {
+        "path": "components/wifi_provisioning/proto/wifi_constants.proto",
+        "sha256": "92c19524abec23141178b027bb0e68dc54979bcd25afbc3a67378ff49578c41e"
+      }
+    ],
+    "vector": "Synthetic fixed keys and code 123456, independently generated using Python cryptography 50.0.2; test-only."
+  }
+}
