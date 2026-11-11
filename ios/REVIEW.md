@@ -39,8 +39,8 @@ Added XCUITest navigation checks, disconnected-state assertions, screenshot atta
 
 - Passed locally: 22 portable Swift tests; eight CI helper tests; four extraction tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
 - GitHub PR #1: <https://github.com/ka2ny/k-mobile/pull/1>.
-- GitHub run 43081485869 failed **before any step ran**: “The job was not started because your account is locked due to a billing issue.” No Apple SDK compilation occurred: <https://github.com/ka2ny/k-mobile/actions/runs/43081485869>.
-- No repository signing secrets, signing environment or team variables were configured at inspection. Supply the settings in `ci/README.md` after the account's CI access is restored.
+- GitHub execution did not reach compilation. No Apple SDK or simulator results are available from this review. Resolve CI availability before retrying checks.
+- Configure distribution signing according to `ci/README.md` before requesting an IPA export.
 - Native build/API/concurrency correctness, UI screenshots, Dynamic Type/VoiceOver, Reduce Motion and measured launch performance remain gates. The new XCUITest suite must run successfully, and screenshots must be inspected before calling the visual pass verified.
 - Physical iPhone/board bonding, wrong-code/reset/reconnect flows, TLS relay interoperability and locked/suspended background reliability remain unverified. Native SoftAP, streaming, files and voice remain outside the implemented native scope.
 

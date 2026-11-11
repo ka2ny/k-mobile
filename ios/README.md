@@ -4,11 +4,11 @@ Native SwiftUI app for your computer and physical k-chain. Includes Apple access
 
 ## Review, motion and performance
 
-[Review findings and validation limits](REVIEW.md) record the fixes, event-driven motion, polling/relay changes and outstanding device measurements. GitHub PR #1 is open; the first CI run was blocked by the GitHub account billing lock before compilation.
+[Review findings and validation limits](REVIEW.md) record the fixes, event-driven motion, polling/relay changes and outstanding device measurements. GitHub PR #1 is open; the first CI attempt did not reach compilation.
 
 ## GitHub CI / IPA packaging
 
-[GitHub Actions + Fastlane setup](ci/README.md) covers simulator checks, distribution signing and downloadable IPA artifacts. The workflow supports Ad Hoc and App Store exports without publishing to Apple. A remote run was attempted but could not start because of the account billing lock.
+[GitHub Actions + Fastlane setup](ci/README.md) covers simulator checks, distribution signing and downloadable IPA artifacts. The workflow supports Ad Hoc and App Store exports without publishing to Apple. A remote run was attempted but did not reach compilation.
 
 ## Open and run
 

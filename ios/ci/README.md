@@ -2,7 +2,7 @@
 
 The workflow is `.github/workflows/ios.yml`. Pushes to `main` and pull requests run PWA checks, portable Swift tests and native simulator tests. A manual run on the repository's **default branch** runs those tests, then archives and exports a signed IPA through Fastlane. It does not upload to TestFlight, App Store Connect or GitHub Releases.
 
-The app is on the review branch in `ka2ny/k-mobile` (PR #1). The first GitHub run was blocked before execution by an account billing lock. No IPA has been produced. Restore Actions access before retrying CI. Firmware and OS repositories are not build targets.
+The app is on the review branch in `ka2ny/k-mobile` (PR #1). The first GitHub run did not reach compilation. No IPA has been produced. Complete the native checks before requesting an export. Firmware and OS repositories are not build targets.
 
 ## GitHub configuration
 
