@@ -31,7 +31,10 @@ def main():
     udid = select_device(devices["devices"])
     if not re.fullmatch(r"[0-9A-Fa-f-]{36}", udid):
         raise ValueError("Invalid simulator identifier")
-    with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
+    env_file = os.environ.get("CM_ENV") or os.environ.get("GITHUB_ENV")
+    if not env_file:
+        raise ValueError("CI must provide CM_ENV or GITHUB_ENV to pass the selected simulator to Fastlane.")
+    with Path(env_file).open("a") as stream:
         stream.write(f"SIMULATOR_UDID={udid}\n")
     print(f"Selected iPhone simulator {udid}; device SDK {sdk}")
 

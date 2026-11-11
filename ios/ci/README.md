@@ -1,4 +1,12 @@
-# Build an IPA with GitHub Actions and Fastlane
+# Build an IPA with Codemagic or GitHub Actions and Fastlane
+
+## Codemagic: unsigned IPA
+
+The root `codemagic.yaml` defines workflow **ios-unsigned** on Mac mini M2 with Xcode 27.1, Ruby 3.3.13 and locked Fastlane dependencies. Select `codex/native-ios-review` while the native app remains on PR #1. Builds are started manually or through the Codemagic API; there are no automatic triggers or store uploads. No Apple signing credentials or Codemagic API token belongs in the repository or workflow.
+
+The workflow checks the SDK, PWA assets and portable contracts, runs native unit/UI tests, then archives and packages the unsigned device IPA. It stops on a failing check and is limited to 60 minutes. Download `KMobile-unsigned.ipa`, `build.json` and `Gemfile.lock` from the successful build's artifacts. Test results and archive logs are also retained. Build identity records the Codemagic commit and build ID; the app build number uses the project build counter plus one. Physical iPhone/board checks remain separate.
+
+## GitHub Actions
 
 The workflow is `.github/workflows/ios.yml`. Pushes to `main` and pull requests run PWA checks, portable Swift tests and native simulator tests, then package an **unsigned IPA**. Manual runs default to unsigned packaging too. Optional signed exports remain available on the default branch. It does not upload to TestFlight, App Store Connect or GitHub Releases.
 

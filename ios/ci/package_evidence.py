@@ -20,10 +20,12 @@ def digest(path):
     return value.hexdigest()
 
 
+codemagic = bool(os.environ.get("CM_BUILD_ID"))
 metadata = {
-    "commit": os.environ["GITHUB_SHA"],
-    "run_id": os.environ["GITHUB_RUN_ID"],
-    "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+    "provider": "codemagic" if codemagic else "github",
+    "commit": os.environ["CM_COMMIT" if codemagic else "GITHUB_SHA"],
+    "run_id": os.environ["CM_BUILD_ID" if codemagic else "GITHUB_RUN_ID"],
+    "run_attempt": "1" if codemagic else os.environ["GITHUB_RUN_ATTEMPT"],
     "requires_external_signing": os.environ["IOS_EXPORT_METHOD"] == "unsigned",
     "export_method": os.environ["IOS_EXPORT_METHOD"],
     "bundle_id": os.environ["IOS_BUNDLE_ID"],

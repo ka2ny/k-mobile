@@ -1,0 +1,56 @@
+workflows:
+  ios-unsigned:
+    name: Native iOS checks and unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: "27.1"
+      ruby: "3.3.13"
+      node: "24"
+      vars:
+        IOS_BUNDLE_ID: app.khole.mobile
+        IOS_EXPORT_METHOD: unsigned
+        IOS_IPA_NAME: KMobile-unsigned.ipa
+        BUNDLE_FROZEN: "true"
+        BUNDLE_PATH: vendor/bundle
+        FASTLANE_SKIP_UPDATE_CHECK: "true"
+        FASTLANE_HIDE_CHANGELOG: "true"
+        FASTLANE_OPT_OUT_USAGE: "true"
+    scripts:
+      - name: Verify SDK and select an iPhone simulator
+        script: |
+          set -euo pipefail
+          python3 ios/ci/preflight.py
+          printf 'IOS_BUILD_NUMBER=%s\n' "$((PROJECT_BUILD_NUMBER + 1))" >> "$CM_ENV"
+      - name: Check extracted assets and portable contracts
+        script: |
+          set -euo pipefail
+          npm test
+          python3 -m unittest discover -s ios/ci -p 'test_*.py'
+          swift test --package-path ios
+          python3 ios/generate_project.py
+          git diff --exit-code -- ios/KMobile.xcodeproj
+      - name: Install locked Fastlane dependencies
+        script: |
+          set -euo pipefail
+          gem install bundler -v 2.5.22 --no-document
+          cd ios
+          bundle _2.5.22_ install
+      - name: Run native unit and UI tests
+        script: |
+          set -euo pipefail
+          cd ios
+          bundle _2.5.22_ exec fastlane ios test
+        test_report: ios/build/test-results/report.junit
+      - name: Archive and package the unsigned device app
+        script: |
+          set -euo pipefail
+          cd ios
+          bundle _2.5.22_ exec fastlane ios unsigned_ipa
+          python3 ci/package_evidence.py
+          cp Gemfile.lock build/ipa/Gemfile.lock
+    artifacts:
+      - ios/build/ipa/*
+      - ios/build/logs/*.log
+      - ios/build/test-results/**
+      - /tmp/xcodebuild_logs/*.log
