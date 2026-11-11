@@ -19,6 +19,7 @@ final class AppModel {
     private(set) var assistantError: String?
     private(set) var activity: [ActivityEntry] = []
     private(set) var lastReceipt: String?
+    private(set) var receiptContext: String?
     private(set) var linkVersion: Int?
     private(set) var boardLinks: [GatewayModels.BoardLink] = []
     private(set) var linksError: String?
@@ -28,6 +29,7 @@ final class AppModel {
     private(set) var pairingError: String?
     private(set) var acceptedActionCount = 0
     @ObservationIgnored private var assistantRefreshing = false
+    @ObservationIgnored private var assistantRequestID = UUID()
     var interacting: Bool { busy || linkBusy }
     var notice: String?
 
@@ -89,6 +91,7 @@ final class AppModel {
         computerError = nil
         assistantError = nil
         lastReceipt = nil
+        receiptContext = nil
     }
 
     func pair(name: String, address: String, kind: ConnectionProfile.Kind, pin: String, code: String) async -> Bool {
@@ -262,14 +265,14 @@ final class AppModel {
 
     func command(_ command: CompanionCommand) async {
         guard canControl else { return }
-        await perform(command.title) { client in
+        await perform(command.title, context: "controls") { client in
             try await client.post("/api/companion/command", body: ["cmd": command.rawValue], as: GatewayModels.Receipt.self)
         }
     }
 
     func requestControl() async {
         guard online, !busy, selected?.kind == .computer else { return }
-        await perform("Control requested") { client in
+        await perform("Control requested", context: "permission") { client in
             try await client.post("/api/ask-control", body: ["level": "full"], as: GatewayModels.Receipt.self)
         }
         // A request is not approval; /api/hello remains the source of permission state.
@@ -280,7 +283,7 @@ final class AppModel {
             notice = "This decision changed. Refresh and review the current request."
             return
         }
-        await perform(allow ? "Agent allowed" : "Agent denied") { client in
+        await perform(allow ? "Agent allowed" : "Agent denied", context: "controls") { client in
             try await client.decide(decision, allow: allow)
         }
         companion = nil
@@ -291,15 +294,17 @@ final class AppModel {
         guard canUseAssistant, let client else { assistant = nil; return }
         guard !assistantRefreshing else { return }
         let current = generation
+        let requestID = UUID()
+        assistantRequestID = requestID
         assistantRefreshing = true
-        defer { if current == generation { assistantRefreshing = false } }
+        defer { if current == generation, requestID == assistantRequestID { assistantRefreshing = false } }
         do {
             let response = try await client.get("/app/assistant", as: GatewayModels.Assistant.self)
-            guard current == generation, !Task.isCancelled else { return }
+            guard current == generation, requestID == assistantRequestID, !Task.isCancelled else { return }
             assistant = response
             assistantError = nil
         } catch {
-            guard current == generation, !Task.isCancelled else { return }
+            guard current == generation, requestID == assistantRequestID, !Task.isCancelled else { return }
             assistant = nil
             assistantError = error.localizedDescription
         }
@@ -307,10 +312,14 @@ final class AppModel {
 
     func assistantAction(_ action: String, text: String? = nil) async -> Bool {
         guard canUseAssistant, ["start", "stop", "show"].contains(action) else { return false }
+        guard !interacting else { return false }
+        assistantRequestID = UUID()
+        assistantRefreshing = false
+        assistant = nil
         var body = ["action": action]
         if let text { body["text"] = text }
         let requestBody = body
-        let success = await perform("Assistant: \(action)") { client in
+        let success = await perform("Assistant: \(action)", context: "assistant") { client in
             try await client.post("/app/assistant/do", body: requestBody, as: GatewayModels.Receipt.self)
         }
         await refreshAssistant()
@@ -318,7 +327,7 @@ final class AppModel {
     }
 
     @discardableResult
-    private func perform(_ title: String, operation: (GatewayClient) async throws -> GatewayModels.Receipt) async -> Bool {
+    private func perform(_ title: String, context: String, operation: (GatewayClient) async throws -> GatewayModels.Receipt) async -> Bool {
         guard let client, !busy, !linkBusy else { return false }
         let current = generation
         busy = true
@@ -331,6 +340,7 @@ final class AppModel {
             let detail = receipt.said ?? receipt.note ?? "The computer accepted the request."
             record(title, detail)
             lastReceipt = detail
+            receiptContext = context
             acceptedActionCount += 1
             return true
         } catch {

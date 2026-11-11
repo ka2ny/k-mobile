@@ -376,6 +376,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
               data.count <= peripheral.maximumWriteValueLength(for: .withResponse) else {
             throw AccessoryFailure.invalid("The board’s setup connection is unavailable.")
         }
+        let current = epoch
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 reply = continuation; replyCharacteristic = characteristic
@@ -386,7 +387,10 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
                 peripheral.writeValue(data, for: characteristic, type: .withResponse)
             }
         } onCancel: {
-            Task { @MainActor [weak self] in self?.disconnect() }
+            Task { @MainActor [weak self] in
+                guard let self, self.epoch == current else { return }
+                self.disconnect()
+            }
         }
     }
     private func secured(_ endpoint: String, _ data: Data) async throws -> Data {

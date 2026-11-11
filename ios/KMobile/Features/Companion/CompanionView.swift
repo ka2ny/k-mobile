@@ -26,7 +26,7 @@ struct CompanionView: View {
                     controls
                     if model.hub?.stopped == true { Label("Controls paused on your computer", systemImage: "pause.circle") }
                     if model.busy { ProgressView("Waiting for your computer…") }
-                    if let receipt = model.lastReceipt {
+                    if let receipt = model.lastReceipt, model.receiptContext == "controls" {
                         Label(receipt, systemImage: "checkmark.circle")
                             .font(.callout).foregroundStyle(.secondary)
                             .transition(.opacity)

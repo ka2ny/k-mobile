@@ -87,7 +87,7 @@ struct HomeView: View {
             if model.selected?.kind == .computer {
                 Button("Ask for full control") { Task { await model.requestControl() } }
                     .buttonStyle(.borderedProminent).controlSize(.large).disabled(model.interacting)
-                if let receipt = model.lastReceipt {
+                if let receipt = model.lastReceipt, model.receiptContext == "permission" {
                     Text(receipt + " Approve on your computer, then pull to refresh.")
                         .font(.callout).foregroundStyle(.secondary)
                 }

@@ -45,7 +45,7 @@ struct AssistantView: View {
                 }
                 Label("Approvals stay on your computer", systemImage: "lock.shield")
                     .font(.subheadline).foregroundStyle(.secondary)
-                if let receipt = model.lastReceipt {
+                if let receipt = model.lastReceipt, model.receiptContext == "assistant" {
                     Text(receipt).font(.callout).foregroundStyle(.secondary)
                 }
             }.quietPage().quietEntrance()
