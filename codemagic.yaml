@@ -6,7 +6,6 @@ workflows:
     environment:
       xcode: "27.0"
       ruby: "3.3.12"
-      node: default
       vars:
         IOS_BUNDLE_ID: app.khole.mobile
         IOS_EXPORT_METHOD: unsigned
