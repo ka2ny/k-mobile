@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#131819">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="k-beam">
+<meta name="format-detection" content="telephone=no">
+<title>k-beam</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="/switch.css">
+<script src="/switch.js" defer></script>
+</head>
+<body>
+<!-- the first moment, before /api/me answers -->
+<main id="boot" class="screen" aria-busy="true">
+  <img class="mark breathe" src="icon.svg" alt="" width="56" height="56" data-khole-switch>
+  <div class="boot-note" id="boot-note" hidden>
+    <p class="status" id="boot-words" role="status" aria-live="polite"></p>
+    <button class="primary" type="button" id="boot-retry">Try again</button>
+  </div>
+</main>
+
+<!-- pairing: once per installed app (a Home Screen app keeps its own storage, so the code works there too) -->
+<main id="pair" class="screen" hidden aria-labelledby="pair-title">
+  <section class="sheet">
+    <img class="mark" src="icon.svg" alt="" width="56" height="56" data-khole-switch>
+    <h1 id="pair-title">Pair with {{NAME}}</h1>
+    <p class="meta" id="pair-hint">On the computer, open k-beam and choose Pair a phone. Scan its code with the camera, or type the code shown there.</p>
+    <form id="pair-form" autocomplete="off" novalidate>
+      <label for="code">Pairing code</label>
+      <input id="code" name="code" class="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" aria-describedby="pair-status">
+      <label for="phone-name">This phone</label>
+      <input id="phone-name" name="phone-name" maxlength="40" placeholder="iPhone" autocomplete="off">
+      <button class="primary" type="submit" id="pair-go">Pair</button>
+    </form>
+    <p class="status" id="pair-status" role="status" aria-live="polite"></p>
+    <p class="meta" id="pair-where" hidden></p>
+    <button class="quiet" type="button" id="pair-guest" hidden>Send something without pairing</button>
+  </section>
+</main>
+
+<!-- the app: a paired phone over Tailscale -->
+<main id="home" class="app" hidden aria-labelledby="home-title">
+  <header class="bar">
+    <img class="mark small" src="icon.svg" alt="" width="32" height="32" data-khole-switch>
+    <div class="who">
+      <p class="mobile-eyebrow">Beam</p>
+      <h1 id="home-title">{{NAME}}</h1>
+      <p class="live" id="live" role="status"><span class="dot"></span><span id="live-words">Connecting…</span></p>
+    </div>
+    <button class="icon" type="button" id="open-settings" aria-label="Settings" aria-haspopup="dialog"><svg data-vector="more" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.65"><path d="M5 12h.01M12 12h.01M19 12h.01"/></g></svg></button>
+  </header>
+
+  <nav class="beam-tabs" aria-label="Beam views"><button id="beam-view" type="button" aria-current="page">Transfer</button><button id="files-view" type="button">Files</button></nav>
+  <section class="send" aria-labelledby="send-title">
+    <h2 id="send-title" class="eyebrow">Send to the computer</h2>
+    <div class="tiles">
+      <label class="tile" for="pick-photos"><span class="disc"><svg data-vector="gallery" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><rect x="3.25" y="4.75" width="17.5" height="14.5" rx="3.25"/><circle cx="8" cy="9" r="1.3"/><path d="M7 18.75 15.5 11l4.75 4.75"/></g></svg></span><span>Photos</span>
+        <input type="file" id="pick-photos" accept="image/*,video/*" multiple></label>
+      <label class="tile" for="pick-camera"><span class="disc"><svg data-vector="camera" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><circle cx="12" cy="10" r="6.5"/><circle cx="12" cy="10" r="2.5"/><path d="M12 17v3M8 20.5h8"/></g></svg></span><span>Camera</span>
+        <input type="file" id="pick-camera" accept="image/*,video/*" capture="environment"></label>
+      <label class="tile" for="pick-files"><span class="disc"><svg data-vector="files" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M3.375 9V8.0625C3.375 6 4.3125 5.0625 6.375 5.0625H8.25Q9.375 5.0625 10.125 6L11.8125 7.6875H17.625C19.875 7.6875 20.8125 8.625 20.8125 10.875V15.375C20.8125 18 19.875 18.9375 17.25 18.9375H6.9375C4.3125 18.9375 3.375 18 3.375 15.375V9Z" /><path d="M6.375 9.9375H20.0625" /></g></svg></span><span>Files</span>
+        <input type="file" id="pick-files" multiple></label>
+      <button class="tile" type="button" id="open-text" aria-haspopup="dialog"><span class="disc"><svg data-vector="doc" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M8 3.5h6l5 5V18q0 2.5-2.5 2.5h-9Q5 20.5 5 18V6q0-2.5 3-2.5Z"/><path d="M14 4v4.5h4.5"/></g></svg></span><span>Text</span></button>
+      <button class="tile" type="button" id="send-clip"><span class="disc"><svg data-vector="clipboard-send" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.45"><path d="M7.5 5.5H7q-1 0-1 1v12q0 2 2 2h8q2 0 2-2v-12q0-1-1-1h-.5"/><rect x="8" y="3" width="8" height="4" rx="1.5"/><path d="M12 17v-7M9 13l3-3 3 3"/></g></svg></span><span>Clipboard</span></button>
+      <button class="tile" type="button" id="get-clip" aria-describedby="get-clip-sub"><span class="disc"><span class="lock" aria-hidden="true"><svg data-vector="lock" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></span><svg data-vector="clipboard-get" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.45"><path d="M7.5 5.5H7q-1 0-1 1v12q0 2 2 2h8q2 0 2-2v-12q0-1-1-1h-.5"/><rect x="8" y="3" width="8" height="4" rx="1.5"/><path d="M12 10v7M9 14l3 3 3-3"/></g></svg></span><span>Its clipboard</span><span class="sub" id="get-clip-sub">Trust first</span></button>
+    </div>
+  </section>
+
+  <section class="inbox" aria-labelledby="inbox-title">
+    <div class="inbox-head"><h2 id="inbox-title" class="eyebrow">From the computer</h2><span class="count" id="count"></span></div>
+    <ul class="items" id="items" aria-live="polite"></ul>
+    <div class="empty" id="empty"><img class="mark ring" src="icon.svg" alt="" width="44" height="44"><p class="empty-title">Nothing waiting</p><p class="meta">What the computer sends lands here, with a notification when the app is closed.</p></div>
+  </section>
+
+  <section class="shared" id="shared" hidden aria-labelledby="shared-folder-title">
+    <header class="files-heading"><div><p class="files-location" id="files-location">Computer / k-beam</p><h2 id="shared-folder-title">Shared files</h2></div><button class="quiet" id="files-refresh" type="button" aria-label="Refresh shared files">Refresh</button></header>
+    <p class="meta files-description">Files shared by your computer. Save them here or add files from your phone.</p>
+    <div id="files-controls" class="files-controls">
+      <input id="files-search" type="search" placeholder="Find a file" aria-label="Find a shared file" autocomplete="off">
+      <div class="files-tools"><select id="files-sort" aria-label="Sort files"><option value="recent">Recently modified</option><option value="name">Name A–Z</option><option value="size">Largest first</option></select><button id="files-layout" class="quiet" type="button" aria-pressed="false">Grid view</button></div>
+      <div class="files-filters" role="group" aria-label="File type"><button type="button" data-file-filter="all" aria-pressed="true">All</button><button type="button" data-file-filter="image" aria-pressed="false">Images</button><button type="button" data-file-filter="document" aria-pressed="false">Documents</button><button type="button" data-file-filter="media" aria-pressed="false">Media</button></div>
+    </div>
+    <div class="files-summary"><span class="count" id="shared-count" role="status"></span><label class="quiet button add" for="shared-add">＋ Add files<input type="file" id="shared-add" multiple></label></div>
+    <p class="meta files-notice" id="files-status" role="status" hidden></p>
+    <div class="files" id="shared-files"></div>
+    <p class="meta" id="shared-empty">No shared files yet. Add files here or place them in k-beam on your computer.</p>
+    <button class="quiet" id="files-more" type="button" hidden>Show more</button>
+  </section>
+</main>
+
+<div class="veil" id="veil" hidden aria-hidden="true"><div class="veil-card"><span class="disc big"><svg data-vector="upload" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M12 14.5v-11M7.5 8 12 3.5 16.5 8M4 16.5V18q0 2.5 2.5 2.5h11q2.5 0 2.5-2.5v-1.5"/></g></svg></span><p id="veil-words">Drop to send to {{NAME}}</p></div></div>
+
+<!-- the plain page: any browser on the home network (or not paired yet) -->
+<main id="guest" class="screen" hidden aria-labelledby="guest-title">
+  <section class="sheet">
+    <img class="mark" src="icon.svg" alt="" width="56" height="56" data-khole-switch>
+    <h1 id="guest-title">Send to {{NAME}}</h1>
+    <p class="meta">It asks on its screen first.</p>
+    <label class="drop" id="drop" for="guest-files">
+      <svg data-vector="upload" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M12 14.5v-11M7.5 8 12 3.5 16.5 8M4 16.5V18q0 2.5 2.5 2.5h11q2.5 0 2.5-2.5v-1.5"/></g></svg>
+      <span class="drop-title" id="drop-title">Choose files</span>
+      <span class="meta" id="drop-meta">or drop them here</span>
+      <input type="file" id="guest-files" multiple>
+    </label>
+    <label for="guest-text">Or a message</label>
+    <textarea id="guest-text" rows="3" maxlength="60000" placeholder="A link, a note, a code…"></textarea>
+    <div id="pin-row" hidden>
+      <label for="guest-pin">Its sharing PIN</label>
+      <input id="guest-pin" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}">
+    </div>
+    <button class="primary" type="button" id="guest-send" disabled>Send</button>
+    <p class="meta" id="guest-app-hint" hidden>With Tailscale on this phone, pair it from the computer for the full app: notifications, saving to Photos, its clipboard.</p>
+  </section>
+</main>
+
+<!-- a share link the computer made -->
+<main id="link" class="screen" hidden aria-labelledby="link-title">
+  <section class="sheet">
+    <img class="mark" src="icon.svg" alt="" width="56" height="56" data-khole-switch>
+    <h1 id="link-title">From {{NAME}}</h1>
+    <p class="meta" id="link-meta"></p>
+    <ul class="items" id="link-items"></ul>
+    <p class="status" id="link-status" role="status" aria-live="polite"></p>
+  </section>
+</main>
+
+<!-- File details never execute file content; raster previews load only on request. -->
+<dialog class="panel file-details" id="file-details" aria-labelledby="file-detail-name"><div class="panel-body">
+  <p class="files-location">Shared files / Details</p><h2 id="file-detail-name" tabindex="-1"></h2>
+  <div id="file-preview" class="file-preview"></div><dl id="file-detail-meta"></dl>
+  <div class="row"><button class="quiet" type="button" id="file-detail-close">Close</button><button class="primary" type="button" id="file-detail-save">Save file</button></div>
+</div></dialog>
+<!-- sheets -->
+<dialog class="panel" id="text-sheet" aria-labelledby="text-title">
+  <form method="dialog" class="panel-body" id="text-form">
+    <h2 id="text-title">Send text</h2>
+    <textarea id="text" rows="6" maxlength="60000" placeholder="A link, a note, a code…" aria-label="Text to send"></textarea>
+    <div class="row">
+      <button class="quiet" type="button" id="text-cancel">Cancel</button>
+      <button class="primary" type="submit" id="text-send" value="send">Send</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- what another app shared: shown first, sent only on a tap (any page can POST to /share-target) -->
+<dialog class="panel" id="shared-sheet" aria-labelledby="shared-title">
+  <form method="dialog" class="panel-body" id="shared-form">
+    <h2 id="shared-title">Send this to {{NAME}}?</h2>
+    <p class="meta" id="shared-meta"></p>
+    <ul class="items shared-list" id="shared-items"></ul>
+    <div class="row">
+      <button class="quiet" type="button" id="shared-cancel">Cancel</button>
+      <button class="primary" type="submit" id="shared-send" value="send">Send</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="panel" id="settings-sheet" aria-labelledby="settings-title">
+  <div class="panel-body">
+    <h2 id="settings-title">k-beam</h2>
+    <p class="meta" id="settings-who"></p>
+    <div class="setting" id="notify-row">
+      <div><p class="setting-name">Notifications</p><p class="meta" id="notify-words">When the computer sends something while the app is closed.</p></div>
+      <button class="quiet" type="button" id="notify-go">Turn on</button>
+    </div>
+    <div class="setting" id="install-row" hidden>
+      <div><p class="setting-name">Add to Home Screen</p><p class="meta" id="install-words">Tap Share, then Add to Home Screen. Then open k-beam from there and type a new pairing code.</p></div>
+      <button class="quiet" type="button" id="install-go" hidden>Install</button>
+    </div>
+    <div class="setting">
+      <div><p class="setting-name">Trusted</p><p class="meta" id="trust-words"></p></div>
+    </div>
+    <div class="row">
+      <button class="danger" type="button" id="unpair">Unpair this phone</button>
+      <button class="quiet" type="button" id="settings-close">Done</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- what's going on: sending, waiting for the computer's answer -->
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+  <div class="toast-row"><span class="toast-words" id="toast-words"></span>
+    <button class="link" type="button" id="toast-action" hidden></button>
+    <button class="link" type="button" id="toast-cancel" hidden>Cancel</button></div>
+  <div class="progress" id="toast-progress" hidden><div id="toast-bar"></div></div>
+  <span class="toast-bytes" id="toast-bytes" hidden></span>
+</div>
+
+<!-- glyphs app.js uses for items -->
+<template id="g-video"><svg data-vector="video" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><rect x="3.25" y="4.75" width="17.5" height="14.5" rx="3.25"/><path d="M10 9v6l5-3Z"/></g></svg></template>
+<template id="g-music"><svg data-vector="music" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M9 17V6l10-2v11"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/></g></svg></template>
+<template id="g-doc"><svg data-vector="doc" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M8 3.5h6l5 5V18q0 2.5-2.5 2.5h-9Q5 20.5 5 18V6q0-2.5 3-2.5Z"/><path d="M14 4v4.5h4.5"/></g></svg></template>
+<template id="g-link"><svg data-vector="link" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></g></svg></template>
+<template id="g-files"><svg data-vector="files" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><path d="M3.375 9V8.0625C3.375 6 4.3125 5.0625 6.375 5.0625H8.25Q9.375 5.0625 10.125 6L11.8125 7.6875H17.625C19.875 7.6875 20.8125 8.625 20.8125 10.875V15.375C20.8125 18 19.875 18.9375 17.25 18.9375H6.9375C4.3125 18.9375 3.375 18 3.375 15.375V9Z" /><path d="M6.375 9.9375H20.0625" /></g></svg></template>
+<template id="g-gallery"><svg data-vector="gallery" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><g stroke-width="1.55"><rect x="3.25" y="4.75" width="17.5" height="14.5" rx="3.25"/><circle cx="8" cy="9" r="1.3"/><path d="M7 18.75 15.5 11l4.75 4.75"/></g></svg></template>
+
+<script src="app.js"></script>
+</body>
+</html>

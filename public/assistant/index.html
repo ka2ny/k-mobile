@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#131819">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="k-hole">
+<meta name="format-detection" content="telephone=no">
+<title>Assistant · k-hole</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/remote/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/remote/apple-touch-icon.png">
+<link rel="stylesheet" href="/hub.css">
+<link rel="stylesheet" href="/assistant/assistant.css">
+<script src="/switch.js" defer></script>
+<script src="/assistant/assistant.js" defer></script>
+</head>
+<body>
+<main id="assistant" aria-labelledby="as-title">
+  <header class="hub-brand">
+    <button class="as-mark" type="button" data-khole-switch aria-label="Switch app"><svg class="hub-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 3.5 16 9l-5 1.7-1.8 5.1Z"/><path d="M11 10.7l4.2 4.2"/><path d="M18 13.5l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9Z" data-accent="true"/></svg></button>
+    <div>
+      <h1 id="as-title">Assistant</h1>
+      <p class="meta" id="as-line" role="status">Checking the computer…</p>
+    </div>
+  </header>
+
+  <p class="note as-block" id="as-blocked" role="alert" hidden></p>
+  <a class="add-open as-pair" id="as-pair" href="/remote/" hidden>Open Remote</a>
+
+  <section id="as-start" class="as-card" aria-labelledby="as-start-title" hidden>
+    <h2 id="as-start-title">What should it do?</h2>
+    <p class="as-hint">It uses the apps on your computer step by step, and asks you before anything risky.</p>
+    <form id="as-form">
+      <div class="as-who" id="as-who" role="radiogroup" aria-labelledby="as-who-label" hidden>
+        <p class="as-label" id="as-who-label">Who does it</p>
+        <div class="as-who-list" id="as-who-list"></div>
+      </div>
+      <button type="button" class="as-link as-memory-open" id="as-memory-open">What it remembers</button>
+      <label class="as-label" for="as-goal">The job</label>
+      <textarea id="as-goal" rows="3" maxlength="2000" placeholder="Find the invoice from March in my mail and save it to Documents" autocomplete="off"></textarea>
+      <div class="as-files" id="as-files">
+        <input type="file" class="as-file-input" id="as-file" accept="image/png,image/jpeg,image/gif,image/webp,image/*,application/pdf,text/plain,.txt,.md,.csv" multiple>
+        <label class="as-link as-attach" for="as-file" id="as-file-label">Add a photo or file</label>
+        <ul class="as-attached" id="as-attached" aria-label="Files it gets with the job" hidden></ul>
+        <p class="note as-result" id="as-file-note" role="status" hidden></p>
+      </div>
+      <button type="submit" class="as-primary" id="as-go">Do it</button>
+      <p class="note as-result" id="as-go-note" role="status" hidden></p>
+    </form>
+  </section>
+
+  <section id="as-now" class="as-card" aria-labelledby="as-now-title" hidden>
+    <p class="eyebrow" id="as-now-state">Working</p>
+    <h2 id="as-now-title"></h2>
+    <p class="as-meta" id="as-now-meta"></p>
+
+    <div class="as-handoff" id="as-handoff" role="group" aria-labelledby="as-handoff-words" hidden>
+      <p class="eyebrow">Handed to an agent</p>
+      <p class="as-ask-what" id="as-handoff-words"></p>
+      <p class="as-hint" id="as-handoff-line" hidden></p>
+      <a class="as-link" id="as-handoff-open" href="/agents/">Open in Agents</a>
+    </div>
+
+    <div class="as-ask" id="as-confirm" role="group" aria-labelledby="as-confirm-label" hidden>
+      <p class="eyebrow">It asks first</p>
+      <p class="as-ask-what" id="as-confirm-label"></p>
+      <p class="as-hint" id="as-confirm-why"></p>
+      <div class="as-row">
+        <button type="button" class="as-safe" id="as-deny">Don't</button>
+        <button type="button" class="as-primary" id="as-allow">Allow on the computer</button>
+      </div>
+      <p class="as-hint as-how">Allowing is a press in the Assistant's window. This opens it on the computer and takes you there in Remote.</p>
+      <p class="note as-result" id="as-confirm-note" role="status" hidden></p>
+    </div>
+
+    <div class="as-ask" id="as-question" role="group" aria-labelledby="as-question-text" hidden>
+      <p class="eyebrow">It needs an answer</p>
+      <p class="as-ask-what" id="as-question-text"></p>
+      <div class="as-choices" id="as-choices"></div>
+      <form class="as-inline" id="as-answer-form">
+        <label class="as-label" for="as-answer">Your answer</label>
+        <input id="as-answer" type="text" maxlength="2000" autocomplete="off">
+        <button type="submit" class="as-primary">Answer</button>
+      </form>
+      <p class="note as-result" id="as-question-note" role="status" hidden></p>
+    </div>
+
+    <div class="as-ask" id="as-paused" role="group" aria-labelledby="as-paused-words" hidden>
+      <p class="eyebrow">Paused</p>
+      <p class="as-ask-what" id="as-paused-words"></p>
+      <div class="as-row">
+        <button type="button" class="as-primary" id="as-continue">Keep going on the computer</button>
+      </div>
+      <p class="as-hint as-how">Letting it go on is a press in the Assistant's window, which this opens in Remote.</p>
+      <p class="note as-result" id="as-paused-note" role="status" hidden></p>
+    </div>
+
+    <ol class="as-plan" id="as-plan" aria-label="The plan"></ol>
+    <ol class="as-steps" id="as-steps" aria-label="What it did"></ol>
+    <p class="as-said" id="as-reply" hidden></p>
+
+    <form class="as-inline" id="as-steer-form">
+      <label class="as-label" for="as-steer">Tell it something now, or what to do next</label>
+      <input id="as-steer" type="text" maxlength="2000" autocomplete="off" placeholder="Use the PDF, not the picture">
+      <div class="as-row">
+        <button type="submit" class="as-safe" id="as-steer-now">Steer now</button>
+        <button type="button" class="as-safe" id="as-next-turn">Next turn</button>
+      </div>
+    </form>
+    <p class="note as-result" id="as-steer-note" role="status" hidden></p>
+    <ul class="as-queue" id="as-queue" aria-label="Waiting for this turn to end" hidden></ul>
+
+    <button type="button" class="as-stop" id="as-stop">Stop</button>
+    <p class="note as-result" id="as-stop-note" role="status" hidden></p>
+  </section>
+
+  <section id="as-done" class="as-card" aria-labelledby="as-done-title" hidden>
+    <p class="eyebrow" id="as-done-state">Done</p>
+    <h2 id="as-done-title"></h2>
+    <p class="as-said" id="as-done-words"></p>
+    <p class="as-meta" id="as-done-meta"></p>
+    <div class="as-row">
+      <button type="button" class="as-safe" id="as-again">Do it again</button>
+      <button type="button" class="as-safe" id="as-go-on">Go on in this chat</button>
+    </div>
+    <p class="note as-result" id="as-again-note" role="status" hidden></p>
+  </section>
+
+  <section id="as-chat" class="as-card" aria-labelledby="as-chat-title" hidden>
+    <button type="button" class="as-back" id="as-chat-back">All chats</button>
+    <p class="eyebrow" id="as-chat-who"></p>
+    <h2 id="as-chat-title"></h2>
+    <p class="note as-result" id="as-chat-note" role="status" hidden></p>
+    <ol class="as-turns" id="as-turns" aria-label="This chat"></ol>
+    <form id="as-follow-form">
+      <label class="as-label" for="as-follow">Send a follow-up</label>
+      <textarea id="as-follow" rows="2" maxlength="2000" placeholder="Now do the same for April" autocomplete="off"></textarea>
+      <button type="submit" class="as-primary" id="as-follow-go">Send</button>
+      <p class="note as-result" id="as-follow-note" role="status" hidden></p>
+    </form>
+  </section>
+
+  <section id="as-memory" class="as-card" aria-labelledby="as-memory-title" hidden>
+    <button type="button" class="as-back" id="as-memory-back">Back</button>
+    <p class="eyebrow" id="as-memory-who"></p>
+    <h2 id="as-memory-title">What it remembers</h2>
+    <p class="as-hint">Pin, lock or forget these in the Assistant's window on your computer.</p>
+    <p class="note as-result" id="as-memory-note" role="status" hidden></p>
+    <ul class="as-facts" id="as-facts" aria-label="What it remembers"></ul>
+    <h3 class="as-notes-title" id="as-howto-title" hidden>Know-how</h3>
+    <ul class="as-facts as-notes" id="as-howto" aria-labelledby="as-howto-title" hidden></ul>
+    <h3 class="as-notes-title" id="as-lessons-title" hidden>Lessons</h3>
+    <ul class="as-facts as-notes" id="as-lessons" aria-labelledby="as-lessons-title" hidden></ul>
+  </section>
+
+  <section id="as-thread" class="as-card" aria-labelledby="as-thread-title" hidden>
+    <button type="button" class="as-back" id="as-thread-back">Back</button>
+    <p class="eyebrow" id="as-thread-who"></p>
+    <h2 id="as-thread-title"></h2>
+    <p class="as-hint" id="as-thread-why" hidden></p>
+    <p class="note as-result" id="as-thread-note" role="status" hidden></p>
+    <ol class="as-turns" id="as-thread-messages" aria-label="This conversation"></ol>
+    <form id="as-thread-form">
+      <label class="as-label" for="as-thread-reply">Write in it</label>
+      <textarea id="as-thread-reply" rows="2" maxlength="2000" placeholder="Keep it under an hour of work" autocomplete="off"></textarea>
+      <button type="submit" class="as-primary" id="as-thread-send">Send</button>
+      <p class="note as-result" id="as-thread-send-note" role="status" hidden></p>
+    </form>
+    <p class="as-hint">Going on, muting and starting a task one of them proposes are done in the Assistant's window on your computer.</p>
+  </section>
+
+  <section id="as-talks" aria-labelledby="as-talks-title" hidden>
+    <div class="home-section-title"><h2 id="as-talks-title">Between your assistants</h2></div>
+    <ul class="computer-list" id="as-talks-list"></ul>
+  </section>
+
+  <section id="as-earlier" aria-labelledby="as-earlier-title" hidden>
+    <div class="home-section-title"><h2 id="as-earlier-title">Your chats</h2></div>
+    <p class="note" id="as-away-note" role="status" hidden></p>
+    <form id="as-find-form" class="as-find" role="search">
+      <label class="as-label" for="as-find">Search chats</label>
+      <input type="search" id="as-find" maxlength="100" placeholder="What you asked, said or did" autocomplete="off" enterkeyhint="search">
+      <p class="note as-result" id="as-find-note" role="status" hidden></p>
+    </form>
+    <div id="as-history"></div>
+  </section>
+</main>
+</body>
+</html>

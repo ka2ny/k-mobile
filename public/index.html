@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#131819">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="k-hole">
+<meta name="format-detection" content="telephone=no">
+<title>k-hole</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/remote/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/remote/apple-touch-icon.png">
+<link rel="stylesheet" href="/hub.css">
+<script src="/switch.js" defer></script>
+<script src="/hub.js" defer></script>
+</head>
+<body>
+<main id="hub" aria-labelledby="hub-title">
+  <header class="hub-brand">
+    <img class="mark" src="/remote/icon.svg" alt="" width="48" height="48">
+    <div>
+      <h1 id="hub-title">Home</h1>
+      <p class="meta" id="hub-line">k-hole / mobile</p>
+    </div>
+    <button class="home-search" type="button" data-shell-apps aria-label="Find an app"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
+  </header>
+  <section class="home-connection" data-home-widget="connection" aria-label="Computer connection">
+  <div class="connection"><span id="connection-state" role="status">Checking connection…</span><button id="retry" type="button" hidden>Try again</button></div>
+  <p class="note" id="stopped" role="status" hidden>Everything is stopped on the computer for privacy. Resume it there to use the phone again.</p>
+  <p class="note" id="pair-first" role="status" hidden>Open Remote and enter the PIN from Settings → Remote on your computer. One pairing connects all three apps.</p>
+  <p class="note" id="full-first" role="status" hidden>Agents can start and approve things on the computer, so it needs full control: open Remote, then More, Full control, and answer at the computer.</p>
+  <p class="note" id="away" role="status" hidden>The computer isn't answering. It may be asleep or off the tailnet.</p>
+  </section>
+  <div class="home-section-title"><h2>Your apps</h2><button type="button" data-shell-apps>All apps</button></div>
+  <nav class="sections" aria-label="Parts of k-hole">
+    <a class="section" id="go-remote" aria-describedby="state-remote" href="/remote/" data-section="remote">
+      <span class="glyph" aria-hidden="true"><svg class="hub-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V7q0-2 2-2h14q2 0 2 2v10q0 2-2 2h-5"/><path d="M3 19h.01"/><path d="M3 15.5q3.5 0 3.5 3.5"/><path d="M3 12q7 0 7 7" data-accent="true"/></svg></span>
+      <span class="words"><span class="name">Remote</span><span class="what">See and use the desktop</span><span class="app-hint" data-hint="remote" aria-hidden="true">Checking</span><span class="state" id="state-remote" data-state="remote">Checking availability…</span></span>
+    </a>
+    <a class="section" id="go-beam" aria-describedby="state-beam" href="/beam/" data-section="beam">
+      <span class="glyph" aria-hidden="true"><svg class="hub-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5V10"/><path d="M8 14l4-4 4 4"/><path d="M6.2 7.2q5.8-5 11.6 0" data-accent="true"/><path d="M8.8 9.6q3.2-2.6 6.4 0" data-accent="true"/></svg></span>
+      <span class="words"><span class="name">Beam</span><span class="what">Send files and text both ways</span><span class="app-hint" data-hint="beam" aria-hidden="true">Checking</span><span class="state" id="state-beam" data-state="beam">Checking availability…</span></span>
+    </a>
+    <a class="section" id="go-agents" aria-describedby="state-agents" href="/agents/" data-section="agents">
+      <span class="glyph" aria-hidden="true"><svg class="hub-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5h10q3.5 0 3.5 3.5v6q0 3.5-3.5 3.5h-6l-4 3v-3q-3.5 0-3.5-3.5V8Q3.5 4.5 7 4.5Z"/><path d="M7.5 8.5 10 11l-2.5 2.5"/><path d="M14 13.5h3" data-accent="true"/></svg></span>
+      <span class="words"><span class="name">Agents</span><span class="what">Answer and steer your agents</span><span class="app-hint" data-hint="agents" aria-hidden="true">Checking</span><span class="state" id="state-agents" data-state="agents">Checking availability…</span></span>
+    </a>
+  </nav>
+  <section id="computers" class="computers" aria-labelledby="computers-title" hidden>
+    <div class="home-section-title"><h2 id="computers-title">Your computers</h2></div>
+    <ul class="computer-list" id="computer-list"></ul>
+    <button type="button" class="add-computer" id="add-computer" aria-expanded="false" aria-controls="add-computer-help"><span class="add-plus" aria-hidden="true">+</span><span class="words"><span class="name">Add a computer</span><span class="what">Another k-hole computer on your tailnet</span></span></button>
+    <div class="add-help" id="add-computer-help" hidden>
+      <ol>
+        <li>On <span id="add-computer-me">this computer</span>, open Settings → Your devices and pick the other computer.</li>
+        <li>Check that both screens show the same six words, then allow it on the other one.</li>
+        <li>On the other computer, turn on Your phones for this one. It shows up here.</li>
+      </ol>
+      <button type="button" class="add-open" id="add-computer-open">Open Your devices on the computer</button>
+      <p class="note add-result" id="add-computer-result" role="status" hidden></p>
+    </div>
+  </section>
+  <p class="note computer-error" id="computer-error" role="status" hidden></p>
+  <a class="home-files" id="go-files" href="/beam/#folder"><svg class="hub-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 9V8q0-3 3-3h1.9q1.1 0 1.9.9l1.6 1.8h5.8q3.2 0 3.2 3.2v4.6q0 3.5-3.5 3.5H6.9q-3.5 0-3.5-3.5Z"/><path d="M6.4 10.4h13.7" data-accent="true"/></svg><span><strong>Files</strong><small>Browse your shared folder</small></span><span class="home-arrow" aria-hidden="true">↗</span></a>
+  <a class="home-files home-assistant" id="go-assistant" href="/assistant/"><svg class="hub-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 3.5 16 9l-5 1.7-1.8 5.1Z"/><path d="M11 10.7l4.2 4.2"/><path d="M18 13.5l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9Z" data-accent="true"/></svg><span><strong>Assistant</strong><small id="assistant-hint">Have the computer do a job for you</small></span><span class="home-arrow" aria-hidden="true">↗</span></a>
+  <a id="home-recent" class="home-recent" data-home-widget="recent" hidden><span class="eyebrow">Last opened</span><strong id="recent-name"></strong><span class="home-arrow" aria-hidden="true">↗</span></a>
+</main>
+</body>
+</html>

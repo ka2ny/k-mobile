@@ -1,0 +1,56 @@
+import SwiftUI
+
+struct SettingsView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmForget = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("This connection") {
+                    if let profile = model.selected {
+                        LabeledContent("Name", value: profile.name)
+                        LabeledContent("Type", value: profile.kind.title)
+                        Text(profile.origin.absoluteString).textSelection(.enabled)
+                        LabeledContent("Control", value: model.device?.control ?? "Unknown")
+                        Button("Forget on this iPhone", role: .destructive) { confirmForget = true }
+                            .disabled(model.interacting)
+                            .confirmationDialog("Forget this connection on this iPhone?", isPresented: $confirmForget, titleVisibility: .visible) {
+                                Button("Forget connection", role: .destructive) { model.forgetSelected() }
+                            } message: {
+                                Text("The saved token and certificate pin will be deleted. To revoke access on the computer as well, remove this device in Settings → Remote on the computer.")
+                            }
+                    } else {
+                        Text("No connection selected").foregroundStyle(.secondary)
+                    }
+                }
+                Section("Made for your iPhone") {
+                    Label("Appearance follows your device", systemImage: "circle.lefthalf.filled")
+                    Label("Supports larger text and VoiceOver", systemImage: "textformat.size")
+                    Label("Credentials stay in Keychain", systemImage: "key")
+                }
+                Section("About") {
+                    LabeledContent("k-hole", value: "Native iOS · 0.1")
+                    Text("Connects to your computer’s phone gateway and k-chain companion service. Includes Bluetooth board pairing and Wi-Fi setup. Voice recording and native desktop streaming are not included in this version.")
+                        .foregroundStyle(.secondary)
+                    Text("Remote, Beam and the full Agents workspace open in your browser. They may ask you to pair separately.")
+                        .foregroundStyle(.secondary)
+                    DisclosureGroup("Source notice") {
+                        Text(sourceNotice).font(.footnote).textSelection(.enabled)
+                    }
+                }
+            }
+            .navigationTitle("Settings")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+    }
+
+    private var sourceNotice: String {
+        guard let url = Bundle.main.url(forResource: "SourceNotice", withExtension: "txt"),
+              let notice = try? String(contentsOf: url, encoding: .utf8) else {
+            return "k-hole mark: © 2026 k-flow owner. See repository LICENSE.md."
+        }
+        return notice
+    }
+}

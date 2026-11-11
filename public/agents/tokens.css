@@ -1,0 +1,166 @@
+/* Quiet Glass · design tokens
+   The single source of truth. Every component uses var(--q-*) and never a raw value.
+   The rules behind the values:
+   - Brand and meaning are separate. The accent is user-tunable; status colours are fixed and must
+     never be derived from the accent.
+   - Working surfaces are opaque graphite. Frosted glass is reserved for sparse chrome: top bar,
+     dock, launcher and Spaces.
+   - Text never goes below 12px. Inputs are 16px on touch devices so iOS doesn't zoom on focus.
+   - Everything lands on a 4px grid.
+   Layer order for the whole library: */
+@layer qg.reset, qg.tokens, qg.base, qg.components, qg.patterns, qg.utilities;
+
+@layer qg.tokens {
+  :root {
+    color-scheme: dark;
+
+    /* ---- Tunable primitives (set by presets or QG.appearance) ---------------------------- */
+    --q-hue: 220; /* surface tint hue (Graphite) */
+    --q-color: 8%; /* surface tint strength; presets reach 66%, 0% is neutral grey */
+    --q-accent-h: 141; /* accent hue: the approved pale sage hsl(141 29% 78%) */
+    --q-accent-s: 29%;
+    --q-accent-l: 78%; /* keep the accent pale so it always takes dark text */
+    --q-glow: 0.18; /* ambient light intensity, 0-0.4 */
+    --q-brightness: 1; /* ambient background brightness, 0.4-1.2 */
+    --q-glass-alpha: 0.62; /* chrome translucency */
+    --q-blur: 24px;
+
+    /* ---- Canvas and opaque working surfaces (identical to k-flow /quiet/) ----------------- */
+    --q-bg: hsl(var(--q-hue) calc(var(--q-color) * 0.186) 9.61%); /* canvas #181819 */
+    --q-surface-1: hsl(var(--q-hue) calc(var(--q-color) * 0.35) 13.5%); /* windows, sheets */
+    --q-surface-2: hsl(var(--q-hue) calc(var(--q-color) * 0.35) 17%); /* cards */
+    --q-surface-3: hsl(var(--q-hue) calc(var(--q-color) * 0.35) 20.5%); /* raised, hover */
+    --q-field: hsl(var(--q-hue) calc(var(--q-color) * 0.3) 9.5%); /* input fill */
+    --q-scrim: hsl(var(--q-hue) calc(var(--q-color) * 0.186) 5% / 0.62);
+
+    /* ---- Ink ------------------------------------------------------------------------------ */
+    --q-ink: #f1f1f3; /* primary text */
+    --q-ink-2: #d9d9e0; /* secondary text */
+    --q-ink-muted: #b6b6c0; /* metadata; >= 4.5:1 on every surface */
+    --q-ink-disabled: #74757c; /* disabled only; not required to meet contrast */
+
+    /* ---- Lines ---------------------------------------------------------------------------- */
+    --q-line: hsl(var(--q-hue) calc(var(--q-color) * 0.589) 86.08% / 0.133); /* hairlines between regions */
+    --q-line-2: hsl(var(--q-hue) calc(var(--q-color) * 0.589) 86.08% / 0.2); /* card edges */
+    --q-line-strong: hsl(var(--q-hue) calc(var(--q-color) * 0.3) 50%); /* input borders: >= 3:1 on --q-field (WCAG 1.4.11) */
+
+    /* ---- Accent (brand; user-tunable; never means status) ---------------------------------- */
+    --q-accent: hsl(var(--q-accent-h) var(--q-accent-s) var(--q-accent-l));
+    --q-accent-hover: hsl(var(--q-accent-h) var(--q-accent-s) calc(var(--q-accent-l) + 5%));
+    --q-accent-deep: hsl(var(--q-accent-h) 22% 57%);
+    --q-on-accent: #17181c; /* text on accent fills */
+    --q-accent-tint: hsl(var(--q-accent-h) var(--q-accent-s) var(--q-accent-l) / 0.08);
+    --q-accent-line: hsl(var(--q-accent-h) var(--q-accent-s) var(--q-accent-l) / 0.42);
+    --q-focus: hsl(var(--q-accent-h) calc(var(--q-accent-s) + 20%) 72%);
+
+    /* ---- Status (fixed; never tied to the accent or the hue; always paired with text or an icon) */
+    --q-ok: hsl(140 65% 52%); /* #35D46A */
+    --q-warn: hsl(38 88% 62%); /* #F3B549 */
+    --q-fail: hsl(356 78% 74%); /* #F08990 "failure rose" */
+    --q-info: hsl(215 72% 70%); /* #7BA9EA */
+    --q-idle: #a6a9b0;
+    --q-ok-tint: color-mix(in srgb, var(--q-ok) 12%, transparent);
+    --q-warn-tint: color-mix(in srgb, var(--q-warn) 12%, transparent);
+    --q-fail-tint: color-mix(in srgb, var(--q-fail) 12%, transparent);
+    --q-info-tint: color-mix(in srgb, var(--q-info) 12%, transparent);
+    --q-ok-line: color-mix(in srgb, var(--q-ok) 40%, transparent);
+    --q-warn-line: color-mix(in srgb, var(--q-warn) 40%, transparent);
+    --q-fail-line: color-mix(in srgb, var(--q-fail) 40%, transparent);
+    --q-info-line: color-mix(in srgb, var(--q-info) 40%, transparent);
+    --q-fail-ink: color-mix(in srgb, var(--q-fail) 45%, var(--q-ink)); /* failure text on a failure tint */
+
+    /* ---- Materials ------------------------------------------------------------------------ */
+    --q-glass: hsl(var(--q-hue) calc(var(--q-color) * 0.25) 15% / var(--q-glass-alpha)); /* chrome only */
+    --q-glass-sheen: linear-gradient(135deg, hsl(var(--q-hue) 30% 92% / 0.08), transparent 60%);
+    --q-glass-edge: hsl(var(--q-hue) var(--q-color) 94.51% / 0.145);
+    --q-glass-filter: blur(var(--q-blur)) saturate(1.1);
+    --q-glass-inset: inset 0 1px 0 hsl(var(--q-hue) var(--q-color) 94.51% / 0.145);
+
+    /* ---- Type ----------------------------------------------------------------------------- */
+    --q-font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --q-font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    --q-text-xs: 0.75rem; /* 12: floor (badges, meta) */
+    --q-text-sm: 0.8125rem; /* 13: secondary UI */
+    --q-text-md: 0.875rem; /* 14: desktop body */
+    --q-text-lg: 1rem; /* 16: phone body, inputs on touch */
+    --q-text-xl: 1.25rem; /* 20: section titles */
+    --q-text-2xl: 1.75rem; /* 28: content titles */
+    --q-text-display: clamp(1.75rem, 1.1rem + 1.8vw, 2.75rem); /* 28-44: Home date, hero */
+    --q-text-3xl: var(--q-text-display); /* alias kept from 1.0 */
+    --q-weight-regular: 400;
+    --q-weight-medium: 500;
+    --q-weight-semibold: 600;
+    --q-leading-tight: 1.2;
+    --q-leading: 1.5;
+    --q-tracking-caps: 0.08em;
+
+    /* ---- Space (4px grid), radius, elevation ---------------------------------------------- */
+    --q-space-1: 4px;
+    --q-space-2: 8px;
+    --q-space-3: 12px;
+    --q-space-4: 16px;
+    --q-space-5: 20px;
+    --q-space-6: 24px;
+    --q-space-7: 32px;
+    --q-space-8: 48px;
+    --q-radius-sm: 8px;
+    --q-radius-md: 12px;
+    --q-radius-lg: 20px;
+    --q-radius-full: 999px;
+    --q-elev-1: 0 1px 2px #0003;
+    --q-elev-2: 0 8px 24px #0005;
+    --q-elev-3: 0 30px 80px #0007;
+
+    /* ---- Controls: fine pointers get desktop density, coarse pointers get 44px targets ------- */
+    --q-control-h: 36px;
+    --q-control-h-sm: 32px; /* compact controls */
+    --q-control-h-compact: var(--q-control-h-sm);
+    --q-target: 44px;
+    --q-input-size: var(--q-text-md);
+
+    /* ---- Motion --------------------------------------------------------------------------- */
+    --q-ease: cubic-bezier(0.22, 0.8, 0.24, 1);
+    --q-dur-fast: 120ms;
+    --q-dur-base: 180ms;
+    --q-dur-slow: 280ms;
+
+    /* ---- Stacking --------------------------------------------------------------------------- */
+    --q-z-window: 10;
+    --q-z-sticky: 50;
+    --q-z-topbar: 1000;
+    --q-z-dock: 1100;
+    --q-z-dialog: 2000;
+    --q-z-toast: 3000;
+
+    /* ---- Shell geometry and safe areas ----------------------------------------------------- */
+    --q-safe-top: env(safe-area-inset-top, 0px);
+    --q-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --q-safe-left: env(safe-area-inset-left, 0px);
+    --q-safe-right: env(safe-area-inset-right, 0px);
+    --q-bar-h: 56px;
+    --q-dock-h: 76px;
+  }
+
+  @media (pointer: coarse) {
+    :root {
+      --q-control-h: 44px;
+      --q-control-h-sm: 44px;
+      --q-input-size: var(--q-text-lg);
+    }
+  }
+  :root[data-device='phone'] {
+    --q-control-h: 44px;
+    --q-control-h-sm: 44px;
+    --q-input-size: var(--q-text-lg);
+    --q-bar-h: 48px;
+  }
+
+  /* ---- Appearance presets, identical to k-flow: surface hue and tint strength plus the accent
+     hue. The accent stays pale (29% 78%) and status colours never change. */
+  :root[data-preset='graphite'] { --q-hue: 220; --q-color: 8%; --q-accent-h: 141; }
+  :root[data-preset='ice'] { --q-hue: 205; --q-color: 64%; --q-accent-h: 192; }
+  :root[data-preset='lilac'] { --q-hue: 268; --q-color: 54%; --q-accent-h: 268; }
+  :root[data-preset='rose'] { --q-hue: 338; --q-color: 54%; --q-accent-h: 330; }
+  :root[data-preset='amber'] { --q-hue: 35; --q-color: 66%; --q-accent-h: 48; }
+  :root[data-preset='sage'] { --q-hue: 105; --q-color: 34%; --q-accent-h: 141; }
+}
