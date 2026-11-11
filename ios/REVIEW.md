@@ -1,6 +1,6 @@
 # Native review — 11 November 2026
 
-Review scope: native SwiftUI app, accessory/gateway lifecycle, motion, accessibility, request load and IPA pipeline. Existing PWA assets and their extraction baseline remain unchanged. This is a source review with local tests, not a completed visual/device qualification.
+Review scope: native SwiftUI app, accessory/gateway lifecycle, motion, accessibility, request load and IPA pipeline. Existing PWA assets and their extraction baseline remain unchanged. The source review is now backed by a successful Xcode archive, native/UI tests and inspection of six simulator screenshots. Physical-device and live-backend qualification remains outstanding.
 
 ## Findings addressed
 
@@ -33,20 +33,20 @@ The foreground monitor fetches companion snapshots only on Controls. Healthy Hom
 
 Relay reads can batch up to 4096 bytes within the available credit, then split into the actual BLE write limit. This reduces opportunities for socket callback overhead when the network provides larger reads; it is not a measured throughput claim. At most six streams exist, each with one bounded read, at most 4 KiB pending phone-to-board data and 64 KiB queued board-to-TCP data. Flush work yields after 16 writes and cannot recurse through close/enqueue. Status observation updates only when the stream count changes.
 
-Added XCUITest navigation checks, disconnected-state assertions, screenshot attachments for every main tab/pairing, and an application-launch metric. These run as part of the shared Xcode scheme and publish evidence with the test result bundle. They have **not run yet**. No FPS, launch-time, energy, BLE-throughput or physical-device measurements are claimed.
+Added XCUITest navigation checks, disconnected-state assertions, screenshot attachments for every main tab/pairing, and an application-launch metric. These run as part of the shared Xcode scheme and publish evidence with the test result bundle. They passed in Codemagic. The debug simulator launch metric averaged **10.158 seconds** across five recorded values, with **15.771% relative standard deviation** and no regression baseline. This is a noisy CI measurement, not evidence that device launch performance meets a target. Release launch time, FPS, energy and BLE throughput still need physical-device profiling.
 
 ## Validation and release blockers
 
-- Passed locally: 24 portable Swift tests (after the second pass below); eight CI helper tests; four extraction tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
+- Passed locally: 24 portable Swift tests (after the second pass below); 15 CI helper tests; four extraction tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
 - GitHub PR #1: <https://github.com/ka2ny/k-mobile/pull/1>.
-- GitHub execution did not reach compilation. No Apple SDK or simulator results are available from this review. Resolve CI availability before retrying checks.
+- Codemagic passed the Xcode 27.0 device archive and simulator suite: 20 native cases plus two UI tests, zero failures. The Mac also passed 24 portable Swift tests, 15 CI helper tests and four PWA tests.
 - Unsigned IPA packaging now needs no Apple signing configuration. Use `ci/README.md` for the default pack-now/sign-later path; configure signing only for optional signed exports.
-- Native build/API/concurrency correctness, UI screenshots, Dynamic Type/VoiceOver, Reduce Motion and measured launch performance remain gates. The new XCUITest suite must run successfully, and screenshots must be inspected before calling the visual pass verified.
+- Inspected the actual Home, k-chain, Controls, Assistant, Activity and empty-pairing screenshot attachments: no clipped controls or misleading connected/success states were observed in these light-mode captures. iPad, landscape, dark mode, Dynamic Type, VoiceOver, Increase Contrast and Reduce Motion still need broader qualification.
 - Physical iPhone/board bonding, wrong-code/reset/reconnect flows, TLS relay interoperability and locked/suspended background reliability remain unverified. Native SoftAP, streaming, files and voice remain outside the implemented native scope.
 
 ## Second pass before packaging — 11 November 2026
 
-Source review of every Swift file, the project generator, plist and packaging path. Still **no Apple SDK build**: this Linux workspace has no Xcode, and GitHub run 43083457669 never started (“account is locked due to a billing issue”). Everything below is unverified on a device or simulator.
+Source review of every Swift file, the project generator, plist and packaging path. At the time of this second pass, the GitHub run had not reached compilation. The later Codemagic verification below covers the Apple SDK build and disconnected simulator flows; physical accessory behavior remains unverified.
 
 | Severity | Finding | Change |
 | --- | --- | --- |
@@ -68,4 +68,13 @@ First-build preparation: the pinned action commits and the `xcode-27` runner lab
 
 Not changed, still open: connections other than the selected one cannot be forgotten without selecting them first; notices raised while Settings is open still use the root alert; `ITSAppUsesNonExemptEncryption` is not declared (an export-compliance statement for the owner to make); AccessorySetupKit with state restoration and `canSendWriteWithoutResponse` stalls need a physical board.
 
-No IPA was packed, no PR was merged and no firmware/OS source was modified.
+No IPA was packed during that source-review pass. The subsequent build below produced the IPA. No PR was merged and no firmware/OS source was modified.
+
+## Verified unsigned build
+
+- Source: `444811c9d4ef479d22c36240f06f617dd16a76ee`, incorporating app changes through `8018349` and the Codemagic setup fixes.
+- Codemagic run: `6af4c9a0f5bbc9e274e0ac57`, completed successfully on 11 November 2026. Xcode 27.0 (27A266a), Mac mini M2, Ruby 3.3.12 and frozen Fastlane 2.241.2 dependencies.
+- Artifact: `KMobile-unsigned.ipa`, 614,582 bytes, version **0.1.0 (5)**, bundle ID `app.khole.mobile`, minimum **iOS 27.0**.
+- SHA-256: `9a7557416b42909b862f631a64cc529581b8f9c5b7dba1b36755b7fbd826ee07`. The downloaded file matches `build.json`; ZIP CRC, executable permissions, arm64 Mach-O and physical iOS platform were verified. No provisioning profile is embedded; external signing is required.
+- The test result bundle, six original screenshot attachments, JUnit report, archive log and dependency lockfile are retained with the build artifacts. Tests and screenshots exercise disconnected app behavior and synthetic protocol/HTTP vectors, not real accessory pairing or desktop actions.
+- Documentation updates after this build do not change the compiled application or workflow. The artifact remains identified by the source commit above.

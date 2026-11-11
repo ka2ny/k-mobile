@@ -10,7 +10,7 @@ The workflow checks the SDK, PWA assets and portable contracts, runs native unit
 
 The workflow is `.github/workflows/ios.yml`. Pushes to `main` and pull requests run PWA checks, portable Swift tests and native simulator tests, then package an **unsigned IPA**. Manual runs default to unsigned packaging too. Optional signed exports remain available on the default branch. It does not upload to TestFlight, App Store Connect or GitHub Releases.
 
-The app is on the review branch in `ka2ny/k-mobile` (PR #1). The first GitHub run did not reach compilation. No IPA has been produced. Complete the native checks before requesting an export. Firmware and OS repositories are not build targets.
+The app is on the review branch in `ka2ny/k-mobile` (PR #1). The first GitHub run did not reach compilation. Codemagic subsequently passed the native checks and produced the unsigned IPA, version 0.1.0 (5), from commit `444811c9d4ef479d22c36240f06f617dd16a76ee`; see [build verification](../REVIEW.md). Firmware and OS repositories are not build targets.
 
 ## Default: pack now, sign later
 

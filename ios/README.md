@@ -1,18 +1,18 @@
 # k-hole for iOS
 
-Native SwiftUI app for your computer and physical k-chain. Includes Apple accessory selection, BLE Wi-Fi setup, Bluetooth byte relaying and desktop phone association. This is an implementation candidate awaiting full Xcode and physical-device qualification, not a verified shipping build. No WebView, external Swift packages, bundled credentials or simulated successful services are included. The original PWA remains unchanged in `../public/`.
+Native SwiftUI app for your computer and physical k-chain. Includes Apple accessory selection, BLE Wi-Fi setup, Bluetooth byte relaying and desktop phone association. The iOS device build and simulator tests pass; physical-device and live-backend qualification remains outstanding. No WebView, external Swift packages, bundled credentials or simulated successful services are included. The original PWA remains unchanged in `../public/`.
 
 ## Review, motion and performance
 
-[Review findings and validation limits](REVIEW.md) record the fixes, event-driven motion, polling/relay changes and outstanding device measurements. GitHub PR #1 is open; the first CI attempt did not reach compilation.
+[Review findings and validation limits](REVIEW.md) record the fixes, event-driven motion, polling/relay changes and outstanding device measurements. GitHub PR #1 is open. Codemagic built the unsigned IPA from commit `444811c9d4ef479d22c36240f06f617dd16a76ee` after native tests passed.
 
-## GitHub CI / IPA packaging
+## CI / IPA packaging
 
-[GitHub Actions + Fastlane setup](ci/README.md) covers simulator checks and unsigned IPA packaging for signing later. No Apple credentials are needed for the default unsigned path; signed Ad Hoc/App Store exports are optional. A remote run was attempted but did not reach compilation.
+[Codemagic, GitHub Actions and Fastlane setup](ci/README.md) covers simulator checks and unsigned IPA packaging for signing later. No Apple credentials are needed for the default unsigned path; signed Ad Hoc/App Store exports are optional. Codemagic produced version **0.1.0 (5)** for arm64 devices running **iOS 27+**.
 
 ## Open and run
 
-Use a Mac with Xcode 27.1 / Swift 6.4 and an iOS 27 simulator or device. The project uses Swift 6 language mode with complete concurrency checking and targets iPhone/iPad.
+Use a Mac with Xcode 27+ and an iOS 27 simulator or device. The verified CI toolchain is Xcode 27.0 (27A266a). The project uses Swift 6 language mode with complete concurrency checking and targets iPhone/iPad.
 
 1. Open `KMobile.xcodeproj`, choose the shared `KMobile` scheme, and select your development team. Change `app.khole.mobile` if that identifier is unavailable.
 2. In Connections, add the actual HTTPS computer address and desktop PIN. The optional **k-chain desktop service** connection uses the dedicated companion listener and its certificate code. These are desktop connections, separate from physical accessory pairing.
@@ -82,11 +82,13 @@ Executed in this Linux workspace on 2026-11-11:
 - Generated Xcode project, source/resource references, plist, scheme and icon metadata checked.
 - `npm test`: four extraction tests passed, including 12 JavaScript syntax checks and 47 cache references. Original PWA hashes remain unchanged.
 
-Not executed: full iOS build/tests, Security 1 vector against CommonCrypto, simulator/UI/accessibility checks, physical board/iPhone, live gateway or App Store qualification. The Xcode tests include a synthetic interoperability vector independently generated with Python cryptography, certificate vectors, permission checks, HTTP/cache behavior and Retry-After.
+Executed in Codemagic on 2026-11-11: the full Xcode build, 20 native test cases and two UI tests passed, including the Security 1 vector against CommonCrypto, certificate vectors, HTTP/cache behavior and Retry-After. Navigation, empty pairing cancellation and launch measurement ran on an iPhone simulator. Six light-mode screenshots were inspected for layout and state accuracy. The Release arm64 device archive was packaged without signing, and the downloaded IPA checksum, ZIP integrity and Mach-O platform were verified. See [the review evidence](REVIEW.md).
+
+Still unverified: physical board/iPhone behavior, live gateway interoperability, dark mode/iPad/landscape and accessibility combinations, device performance, signing and App Store qualification.
 
 Before release, record results for:
 
-- Xcode build/test and device signing; iPhone/iPad, light/dark, large text, VoiceOver and landscape.
+- Device signing; physical iPhone/iPad, dark mode, large text, VoiceOver, Increase Contrast, Reduce Motion and landscape.
 - System picker permission/cancel/remove; SMP accept/reject; bond revocation; switching setup/relay services on the same board; board reboot and repeated setup without reboot.
 - Correct/wrong PoP, the board's lockout, incorrect Wi-Fi password, unknown SSID, reset-before-retry, timeout, cancellation and app suspension. Verify that no failure reports success.
 - Relay credit exhaustion, six simultaneous streams, TCP failure, board CLOSE during dialing, cellular/VPN changes, local-network denial, locked screen, OS suspension/termination and state restoration. Observe throughput, battery and background continuity on a physical phone.
