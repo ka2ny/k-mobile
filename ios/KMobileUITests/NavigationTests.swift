@@ -26,6 +26,26 @@ final class NavigationTests: XCTestCase {
     }
 
     @MainActor
+    func testDarkAppearanceRoutes() throws {
+        let app = XCUIApplication()
+        // Set the real app preference through UserDefaults' launch-argument domain.
+        app.launchArguments = ["-appearance.mode", "dark"]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["k-hole"].waitForExistence(timeout: 10))
+        capture("Dark-Home", app)
+        for title in ["k-chain", "Controls", "Assistant", "Activity"] {
+            app.tabBars.buttons[title].tap()
+            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 3))
+            capture("Dark-" + title, app)
+        }
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any)["appearance.mode"].firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any)["appearance.accent"].firstMatch.exists)
+        capture("Dark-Settings", app)
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) { XCUIApplication().launch() }
     }
