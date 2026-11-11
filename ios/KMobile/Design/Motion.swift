@@ -16,6 +16,24 @@ struct QuietControlStyle: ButtonStyle {
     }
 }
 
+/// Primary action. The label takes the canvas colour: white text on the lighter dark-mode accent is only 2.1:1.
+struct QuietProminentStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundStyle(enabled ? Design.background : Color.secondary)
+            .padding(.horizontal, 20)
+            .frame(minHeight: 50)
+            .background(enabled ? Design.accent.opacity(configuration.isPressed ? 0.82 : 1) : Color.secondary.opacity(0.16),
+                        in: .rect(cornerRadius: 16))
+            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.98)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.18, extraBounce: 0), value: configuration.isPressed)
+    }
+}
+
 private struct QuietEntrance: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false

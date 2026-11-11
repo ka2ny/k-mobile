@@ -13,8 +13,10 @@ struct AssistantView: View {
                     .font(.largeTitle).bold().tracking(-1)
                 Text("Give your computer something to work on.")
                     .foregroundStyle(.secondary)
-                if !model.canUseAssistant {
-                    ContentUnavailableView("Connect to your computer", systemImage: "sparkle", description: Text("Assistant needs a Computer connection with full control, and remote services must be running."))
+                if !model.canUseAssistant && model.selected != nil && !model.online && model.refreshing && model.connectionError == nil {
+                    ProgressView("Connecting to your computer…").frame(maxWidth: .infinity).padding(Design.inset)
+                } else if !model.canUseAssistant {
+                    ContentUnavailableView(blocker.title, systemImage: "sparkle", description: Text(blocker.detail))
                 } else if let job = model.assistant?.now {
                     if job.running {
                         VStack(alignment: .leading, spacing: Design.gap) {
@@ -65,6 +67,23 @@ struct AssistantView: View {
         }
     }
 
+    /// Names the one thing standing between this device and Assistant, in the order a person would fix it.
+    private var blocker: (title: String, detail: String) {
+        guard let selected = model.selected else {
+            return ("Connect to your computer", "Add a Computer connection to hand tasks to your desktop Assistant.")
+        }
+        if selected.kind != .computer {
+            return ("Assistant needs a Computer connection", "The k-chain desktop service carries controls only. Choose a Computer connection in Connections.")
+        }
+        if !model.online {
+            return ("Your computer is out of reach", "Keep your computer awake and on a network this device can reach.")
+        }
+        if model.hub?.stopped == true {
+            return ("Paused on your computer", "Remote services are paused. Resume them on your computer to use Assistant.")
+        }
+        return ("Full control needed", "Approve full control for this device on your computer. You can ask from Home.")
+    }
+
     private var composer: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
             Text("What’s on your mind?").font(.title2).bold()
@@ -82,7 +101,7 @@ struct AssistantView: View {
                     }
                 }
             }
-            .buttonStyle(.borderedProminent).controlSize(.large)
+            .buttonStyle(QuietProminentStyle())
             .disabled(model.interacting || goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }.quietCard().disabled(model.interacting)
     }

@@ -14,7 +14,7 @@ struct AccessoryView: View {
                         .font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
                     Text(accessory.status).foregroundStyle(.secondary)
                     if accessory.streams > 0 {
-                        Label("\(accessory.streams) active connections", systemImage: "lock.shield")
+                        Label(accessory.streams == 1 ? "1 active connection" : "\(accessory.streams) active connections", systemImage: "lock.shield")
                     }
                 }.padding(.vertical, 12)
             }
@@ -46,6 +46,7 @@ struct AccessoryView: View {
                 } footer: { Text("This removes this app’s accessory access. Remove the phone on the board too if you want to revoke its saved bond. Desktop links are managed separately.") }
             }
         }
+        .quietList()
         .navigationTitle("k-chain")
         .sheet(isPresented: $showSetup) { WiFiSetupView() }
         .confirmationDialog("Forget this Bluetooth accessory?", isPresented: $confirmForget, titleVisibility: .visible) {
@@ -123,6 +124,7 @@ struct WiFiSetupView: View {
                     }
                 }
             }
+            .quietList()
             .navigationTitle("Board Wi-Fi")
             .toolbar { ToolbarItem(placement: .cancellationAction) {
                 Button(accessory.joinedAddress == nil ? "Cancel" : "Done") {
@@ -185,6 +187,7 @@ struct BoardLinkView: View {
             }
             if let error = model.linksError { Section { Text(error).foregroundStyle(.red) } }
         }
+        .quietList()
         .navigationTitle("Phone link")
         .task(id: "\(model.selectedID?.uuidString ?? "none")-\(model.supportsBoardLink)-\(scenePhase)") {
             guard scenePhase == .active else { code = ""; return }

@@ -16,6 +16,11 @@ extension View {
             .background(Design.surface, in: .rect(cornerRadius: Design.radius))
     }
 
+    /// Lists and forms sit on the same warm canvas as the pages instead of the system grouped grey.
+    func quietList() -> some View {
+        scrollContentBackground(.hidden).background(Design.background)
+    }
+
     func quietPage() -> some View {
         frame(maxWidth: 760)
             .padding(Design.inset)

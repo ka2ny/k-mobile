@@ -34,6 +34,8 @@ def main():
         for name in ("Debug", "Release"):
             config = dict(values)
             config["SWIFT_OPTIMIZATION_LEVEL"] = "-Onone" if name == "Debug" else "-O"
+            config["SWIFT_COMPILATION_MODE"] = "singlefile" if name == "Debug" else "wholemodule"
+            config["ONLY_ACTIVE_ARCH"] = "YES" if name == "Debug" else "NO"
             if name == "Debug":
                 config["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "DEBUG $(inherited)"
                 config["ENABLE_TESTABILITY"] = "YES"
@@ -73,12 +75,15 @@ def main():
         "MARKETING_VERSION": "0.1.0", "CURRENT_PROJECT_VERSION": "1",
         "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
-        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor", "SWIFT_EMIT_LOC_STRINGS": "YES"})
+        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor", "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks"})
     test_configs = configurations("tests", {"PRODUCT_NAME": "KMobileTests", "PRODUCT_BUNDLE_IDENTIFIER": "app.khole.mobile.tests",
         "GENERATE_INFOPLIST_FILE": "YES", "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/KMobile.app/KMobile",
-        "BUNDLE_LOADER": "$(TEST_HOST)"})
+        "BUNDLE_LOADER": "$(TEST_HOST)",
+        "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks @loader_path/Frameworks"})
     ui_configs = configurations("ui", {"PRODUCT_NAME": "KMobileUITests", "PRODUCT_BUNDLE_IDENTIFIER": "app.khole.mobile.uitests",
-        "GENERATE_INFOPLIST_FILE": "YES", "TEST_TARGET_NAME": "KMobile"})
+        "GENERATE_INFOPLIST_FILE": "YES", "TEST_TARGET_NAME": "KMobile",
+        "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks @loader_path/Frameworks"})
     app = add("appTarget", f'isa = PBXNativeTarget; buildConfigurationList = {app_configs}; buildPhases = {array([phases["app"], phases["resources"]])}; buildRules = (); dependencies = (); name = KMobile; productName = KMobile; productReference = {app_product}; productType = "com.apple.product-type.application";')
     proxy = add("proxy", f'isa = PBXContainerItemProxy; containerPortal = {ident("project")}; proxyType = 1; remoteGlobalIDString = {app}; remoteInfo = KMobile;')
     dependency = add("dependency", f'isa = PBXTargetDependency; target = {app}; targetProxy = {proxy};')

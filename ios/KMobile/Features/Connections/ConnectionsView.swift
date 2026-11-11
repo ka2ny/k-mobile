@@ -35,6 +35,7 @@ struct ConnectionsView: View {
                     Text("Computer uses the phone gateway. Companion uses the desktop’s dedicated k-chain address. Each keeps its own pairing and permissions.")
                 }
             }
+            .quietList()
             .navigationTitle("Connections")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .sheet(isPresented: $showPairing) { PairingView() }

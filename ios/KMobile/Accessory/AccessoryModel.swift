@@ -34,6 +34,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     @ObservationIgnored private var central: CBCentralManager?
     @ObservationIgnored private var peripheral: CBPeripheral?
     @ObservationIgnored private var retiring: Set<UUID> = []
+    @ObservationIgnored private var retireTask: Task<Void, Never>?
     @ObservationIgnored private var activeService: CBService?
     @ObservationIgnored private var wantedID: UUID?
     @ObservationIgnored private var relayEnabled = false
@@ -58,7 +59,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             activateSession()
             relayEnabled = UserDefaults.standard.bool(forKey: "accessory.relay.enabled")
             if relayEnabled {
-                wantedID = UserDefaults.standard.string(forKey: "accessory.relay.id").flatMap(UUID.init(uuidString:))
+                wantedID = savedID
                 startCentral()
             }
         }
@@ -91,8 +92,15 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             pendingPicker = false
             selected(id: id, name: accessory.displayName)
         case .accessoryRemoved:
-            if event.accessory?.bluetoothIdentifier == wantedID { disconnect(); error = "Accessory access was removed in Settings." }
-        case .pickerDidDismiss: pendingPicker = false
+            // Compare against the saved accessory, never nil == nil while nothing is connected.
+            guard let removed = event.accessory?.bluetoothIdentifier else { break }
+            if removed == savedID {
+                disconnect(); clearSaved()
+                error = "Accessory access was removed in Settings."
+            } else if removed == wantedID { disconnect() }
+        case .pickerDidDismiss:
+            // A dismissal without a selection leaves nothing to wait for.
+            if pendingPicker { pendingPicker = false; status = savedRelay ? "Disconnected" : "Your k-chain, close at hand." }
         case .invalidated:
             activated = false; pendingPicker = false
             disconnect(); error = "Accessory access ended. Reopen the app to try again."
@@ -101,6 +109,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         if let failure = event.error { error = failure.localizedDescription }
     }
     func prepareSetup() { joinedAddress = nil; error = nil }
+    private var savedID: UUID? { UserDefaults.standard.string(forKey: "accessory.relay.id").flatMap(UUID.init(uuidString:)) }
 
     func choose(_ nextMode: Mode) {
         guard !working else { return }
@@ -128,7 +137,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     /// Reauthorize the known accessory for its other firmware service without assuming the old GATT database survived.
     func useSaved(_ nextMode: Mode) {
         guard !working, activated,
-              let id = UserDefaults.standard.string(forKey: "accessory.relay.id").flatMap(UUID.init(uuidString:)),
+              let id = savedID,
               let accessory = session.accessories.first(where: { $0.bluetoothIdentifier == id }) else { choose(nextMode); return }
         disconnect(); mode = nextMode; error = nil; joinedAddress = nil
         let descriptor = ASDiscoveryDescriptor()
@@ -180,16 +189,32 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         UserDefaults.standard.set(false, forKey: "accessory.relay.enabled")
         wantedID = nil
         if let peripheral {
-            if peripheral.state != .disconnected { retiring.insert(peripheral.identifier) }
+            if peripheral.state != .disconnected { retire(peripheral.identifier) }
             central?.cancelPeripheralConnection(peripheral)
         }
         peripheral = nil
         resetTransport()
         status = "Disconnected"
     }
+    /// Wait for the old link's disconnect callback before reconnecting the same board, but never indefinitely:
+    /// cancelling a connection that was still pending is not guaranteed to report one.
+    private func retire(_ id: UUID) {
+        retiring.insert(id)
+        retireTask?.cancel()
+        retireTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            guard let self, !self.retiring.isEmpty else { return }
+            self.retiring.removeAll()
+            self.connectKnown()
+        }
+    }
     func forget() {
-        guard !working, activated,
-              let id = UserDefaults.standard.string(forKey: "accessory.relay.id").flatMap(UUID.init(uuidString:)) else { return }
+        guard !working else { return }
+        guard activated, let id = savedID else {
+            // Never fail silently on a destructive action the person asked for.
+            error = "Accessory access is not ready. Reopen the app, or remove k-chain in Settings → Privacy & Security → Accessories."
+            return
+        }
         disconnect()
         guard let accessory = session.accessories.first(where: { $0.bluetoothIdentifier == id }) else { clearSaved(); return }
         let current = epoch
@@ -221,6 +246,12 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         finishReply(.failure(AccessoryFailure.invalid(message)))
         disconnect(); error = message; status = "Connection needs attention"
     }
+    /// Cancellation means the transport was already reset by whoever cancelled it (the user, a disconnect or
+    /// backgrounding), and that path owns the status and message.
+    private func report(_ error: Error, hint: String = "") {
+        if error is CancellationError { return }
+        fail(error.localizedDescription + hint)
+    }
     private func armTimeout(_ message: String) {
         timeout?.cancel()
         timeout = Task { [weak self] in
@@ -230,8 +261,22 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     }
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn { retiring.removeAll(); connectKnown() }
-        else {
+        switch central.state {
+        case .poweredOn:
+            retiring.removeAll()
+            if let peripheral, peripheral.state == .connected, activeService == nil {
+                // Restored by the system while already connected; discovery waits for a powered-on central.
+                armTimeout("The restored board did not answer. Reconnect Bluetooth.")
+                peripheral.discoverServices([Self.relayService])
+            } else {
+                if let stale = peripheral, stale.state == .disconnected { peripheral = nil }
+                connectKnown()
+            }
+        case .unknown: break
+        case .resetting:
+            peripheral = nil; resetTransport()
+            status = "Bluetooth is restarting…"
+        default:
             peripheral = nil; resetTransport()
             status = central.state == .unauthorized ? "Allow accessory access in Settings." : "Bluetooth is unavailable."
         }
@@ -239,12 +284,11 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
         guard relayEnabled, let wantedID,
               let restored = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.first(where: { $0.identifier == wantedID }) else { return }
+        // Adopt only a live or pending link. Anything else is reconnected normally once the central powers on.
+        guard restored.state == .connected || restored.state == .connecting else { return }
         resetTransport()
         mode = .relay; peripheral = restored; restored.delegate = self
-        if restored.state == .connected {
-            armTimeout("The restored board did not answer. Reconnect Bluetooth.")
-            restored.discoverServices([Self.relayService])
-        }
+        status = "Waiting for your k-chain…"
     }
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         guard self.peripheral === peripheral else { return }
@@ -254,14 +298,14 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         peripheral.discoverServices([mode == .relay ? Self.relayService : Self.setupService])
     }
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        if retiring.remove(peripheral.identifier) != nil { connectKnown(); return }
+        if retiring.remove(peripheral.identifier) != nil, self.peripheral !== peripheral { connectKnown(); return }
         guard self.peripheral === peripheral else { return }
         self.peripheral = nil; resetTransport()
         self.error = error?.localizedDescription ?? "Could not connect to the board."
         if mode == .relay && relayEnabled { scheduleReconnect() }
     }
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        if retiring.remove(peripheral.identifier) != nil { connectKnown(); return }
+        if retiring.remove(peripheral.identifier) != nil, self.peripheral !== peripheral { connectKnown(); return }
         guard self.peripheral === peripheral else { return }
         self.peripheral = nil; resetTransport()
         if joinedAddress != nil { status = "Wi-Fi connected"; return }
@@ -404,11 +448,11 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         defer { working = false }
         do {
             struct Version: Decodable {
-                struct Provisioning: Decodable { let ver: String; let sec_ver: Int; let sec_patch_ver: Int; let cap: [String] }
+                struct Provisioning: Decodable { let ver: String; let sec_ver: Int; let sec_patch_ver: Int?; let cap: [String] }
                 let prov: Provisioning
             }
             let version = try JSONDecoder().decode(Version.self, from: await request("proto-ver", Data([0])))
-            guard version.prov.ver == "v1.1", version.prov.sec_ver == 1, version.prov.sec_patch_ver == 0,
+            guard version.prov.ver == "v1.1", version.prov.sec_ver == 1, (version.prov.sec_patch_ver ?? 0) == 0,
                   !version.prov.cap.contains("no_pop"), !version.prov.cap.contains("no_sec") else {
                 throw AccessoryFailure.invalid("This board does not support the required authenticated setup protocol.")
             }
@@ -418,7 +462,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             try security.verify(await request("prov-session", proof))
             self.security = security; setupAuthenticated = true
             status = "Board verified. Choose its Wi-Fi network."
-        } catch { fail(error.localizedDescription + " Check the current code on the board; repeated wrong codes cause a one-minute pause.") }
+        } catch { report(error, hint: " Check the current code on the board; repeated wrong codes cause a one-minute pause.") }
     }
     func scan() async {
         guard setupAuthenticated, !working else { return }
@@ -442,7 +486,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
                 }
             }
             networks = found
-        } catch { fail(error.localizedDescription) }
+        } catch { report(error) }
     }
     func join(ssid: String, password: String) async -> Bool {
         guard setupAuthenticated, !working else { return false }
@@ -475,6 +519,6 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
                 }
             }
             throw AccessoryFailure.invalid("Wi-Fi setup timed out. Check the board before reconnecting.")
-        } catch { fail(error.localizedDescription); return false }
+        } catch { report(error); return false }
     }
 }

@@ -3,7 +3,7 @@ import Testing
 @testable import KMobile
 
 struct GatewayClientTests {
-    private func client() throws -> GatewayClient {
+    private func makeClient() throws -> GatewayClient {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [GatewayStub.self]
         return GatewayClient(profile: ConnectionProfile(id: UUID(), name: "Test",
@@ -12,7 +12,7 @@ struct GatewayClientTests {
     }
 
     @Test func sendsBearerAndDisablesCache() async throws {
-        let client = try client()
+        let client = try makeClient()
         defer { client.cancel() }
         // The stub only returns success when all transport assertions hold.
         let response = try await client.get("/api/hello", as: GatewayModels.Hello.self)
@@ -20,7 +20,7 @@ struct GatewayClientTests {
     }
 
     @Test func serviceUnavailableThrowsInsteadOfCreatingConnection() async throws {
-        let client = try client()
+        let client = try makeClient()
         defer { client.cancel() }
         await #expect(throws: GatewayError.self) {
             try await client.get("/unavailable", as: GatewayModels.Hello.self)
@@ -28,7 +28,7 @@ struct GatewayClientTests {
     }
 
     @Test func rateLimitUsesHTTPHeader() async throws {
-        let client = try client()
+        let client = try makeClient()
         defer { client.cancel() }
         do {
             let _ = try await client.get("/limited", as: GatewayModels.Hello.self)
@@ -37,7 +37,7 @@ struct GatewayClientTests {
     }
 
     @Test func htmlLoginCannotBecomeAPIData() async throws {
-        let client = try client()
+        let client = try makeClient()
         defer { client.cancel() }
         await #expect(throws: GatewayError.self) {
             try await client.get("/login", as: GatewayModels.Hello.self)
@@ -45,7 +45,7 @@ struct GatewayClientTests {
     }
 
     @Test func rejectsCrossOriginTokenForwarding() async throws {
-        let client = try client()
+        let client = try makeClient()
         defer { client.cancel() }
         await #expect(throws: GatewayError.self) {
             try await client.get("//other.invalid/api/hello", as: GatewayModels.Hello.self)

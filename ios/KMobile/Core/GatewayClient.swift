@@ -61,7 +61,7 @@ final class GatewayClient: Sendable {
         guard let response = response as? HTTPURLResponse else { throw GatewayError.invalidResponse }
         guard (200..<300).contains(response.statusCode) else {
             let failure = try? JSONDecoder().decode(GatewayModels.Failure.self, from: data)
-            var message = failure?.error ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode)
+            let message = failure?.error ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode)
             if response.statusCode == 429 {
                 let seconds = response.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init) ?? failure?.retry_after ?? 600
                 throw GatewayError.rateLimited(max(1, seconds), message)

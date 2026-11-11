@@ -13,10 +13,10 @@ struct SettingsView: View {
                         LabeledContent("Name", value: profile.name)
                         LabeledContent("Type", value: profile.kind.title)
                         Text(profile.origin.absoluteString).textSelection(.enabled)
-                        LabeledContent("Control", value: model.device?.control ?? "Unknown")
-                        Button("Forget on this iPhone", role: .destructive) { confirmForget = true }
+                        LabeledContent("Control", value: controlLabel)
+                        Button("Forget on this device", role: .destructive) { confirmForget = true }
                             .disabled(model.interacting)
-                            .confirmationDialog("Forget this connection on this iPhone?", isPresented: $confirmForget, titleVisibility: .visible) {
+                            .confirmationDialog("Forget this connection on this device?", isPresented: $confirmForget, titleVisibility: .visible) {
                                 Button("Forget connection", role: .destructive) { model.forgetSelected() }
                             } message: {
                                 Text("The saved token and certificate pin will be deleted. To revoke access on the computer as well, remove this device in Settings → Remote on the computer.")
@@ -25,7 +25,7 @@ struct SettingsView: View {
                         Text("No connection selected").foregroundStyle(.secondary)
                     }
                 }
-                Section("Made for your iPhone") {
+                Section("Made for your device") {
                     Label("Appearance follows your device", systemImage: "circle.lefthalf.filled")
                     Label("Supports larger text and VoiceOver", systemImage: "textformat.size")
                     Label("Credentials stay in Keychain", systemImage: "key")
@@ -41,8 +41,18 @@ struct SettingsView: View {
                     }
                 }
             }
+            .quietList()
             .navigationTitle("Settings")
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+    }
+
+    private var controlLabel: String {
+        guard let control = model.device?.control else { return "Unknown until connected" }
+        switch control {
+        case "full": return "Full control"
+        case "view": return "View only"
+        default: return control.capitalized
         }
     }
 

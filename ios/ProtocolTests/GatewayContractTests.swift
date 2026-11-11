@@ -41,6 +41,20 @@ struct GatewayContractTests {
         #expect(try ConnectionProfile.validatedOrigin(" https://DESKTOP.local:8445/ ").absoluteString == "https://desktop.local:8445")
         #expect(try ConnectionProfile.validatedOrigin("https://DESKTOP.local:443/").absoluteString == "https://desktop.local")
     }
+    @Test func bareHostsAssumeHTTPSOnly() throws {
+        #expect(try ConnectionProfile.validatedOrigin("Studio.local").absoluteString == "https://studio.local")
+        #expect(try ConnectionProfile.validatedOrigin(" desktop.local:8445 ").absoluteString == "https://desktop.local:8445")
+        for input in ["", "   ", "desktop.local/path", "user:secret@desktop.local", "desktop.local?token=secret", "ftp://desktop.local", "mailto:desktop.local"] {
+            #expect(throws: GatewayError.self) { try ConnectionProfile.validatedOrigin(input) }
+        }
+    }
+    @Test func certificateCodeNormalization() {
+        #expect(ConnectionProfile.normalizedCertificateCode(" aplg 3uei ") == "APLG-3UEI")
+        #expect(ConnectionProfile.normalizedCertificateCode("APLG-3UEI") == "APLG-3UEI")
+        for input in ["", "APLG-3UE", "APLG-3UEI2", "APLG-3UE1", "APLG_3UEI", "ÀPLG-3UEI"] {
+            #expect(ConnectionProfile.normalizedCertificateCode(input) == nil)
+        }
+    }
     @Test func missingControlFailsClosed() {
         #expect(throws: DecodingError.self) {
             try JSONDecoder().decode(GatewayModels.Hello.self, from: Data(#"{"device":{"id":"phone","name":"Phone","kind":"phone"}}"#.utf8))

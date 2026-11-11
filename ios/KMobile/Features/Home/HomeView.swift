@@ -38,7 +38,7 @@ struct HomeView: View {
                         Text("Add your computer for controls and Assistant. Open the k-chain tab to pair your physical accessory.")
                             .foregroundStyle(.secondary)
                         Button("Connect your computer", systemImage: "plus") { showConnections = true }
-                            .buttonStyle(.borderedProminent).controlSize(.large)
+                            .buttonStyle(QuietProminentStyle())
                     }.quietCard()
                 }
             }.quietPage().quietEntrance()
@@ -68,10 +68,11 @@ struct HomeView: View {
                 Text("Updated \(date.formatted(date: .omitted, time: .shortened))")
                     .font(.footnote).foregroundStyle(.secondary)
             }
-            Button(model.selected == nil ? "Add connection" : "Switch connection", systemImage: "arrow.left.arrow.right") {
-                showConnections = true
+            // Without a connection, the card below carries the single call to action.
+            if model.selected != nil {
+                Button("Switch connection", systemImage: "arrow.left.arrow.right") { showConnections = true }
+                    .buttonStyle(.bordered).controlSize(.large).disabled(model.interacting)
             }
-            .buttonStyle(.bordered).controlSize(.large).disabled(model.interacting)
         }.quietCard()
     }
 
@@ -86,9 +87,9 @@ struct HomeView: View {
             }
             if model.selected?.kind == .computer {
                 Button("Ask for full control") { Task { await model.requestControl() } }
-                    .buttonStyle(.borderedProminent).controlSize(.large).disabled(model.interacting)
+                    .buttonStyle(QuietProminentStyle()).disabled(model.interacting)
                 if let receipt = model.lastReceipt, model.receiptContext == "permission" {
-                    Text(receipt + " Approve on your computer, then pull to refresh.")
+                    Text(receipt + " Approve on your computer. This page updates by itself.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
             } else {
@@ -116,7 +117,8 @@ struct HomeView: View {
     }
 
     private func service(_ title: String, detail: String, icon: String, path: String, ready: Bool?, profile: ConnectionProfile) -> some View {
-        Link(destination: profile.origin.appending(path: path)) {
+        let available = model.online && ready == true && model.hub?.stopped != true
+        return Link(destination: profile.origin.appending(path: path)) {
             HStack(spacing: Design.gap) {
                 Image(systemName: icon).font(.title2).foregroundStyle(Design.accent).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 4) {
@@ -131,6 +133,7 @@ struct HomeView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Opens in your browser")
-        .disabled(!model.online || ready != true || model.hub?.stopped == true)
+        .disabled(!available)
+        .opacity(available ? 1 : 0.6)
     }
 }

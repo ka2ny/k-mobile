@@ -27,7 +27,10 @@ final class AppModel {
     private(set) var linkBusy = false
     var supportsBoardLink: Bool { online && selected?.kind == .computer && device?.kind == "phone" && linkVersion == 1 }
     private(set) var pairingError: String?
+    private(set) var decisionError: String?
     private(set) var acceptedActionCount = 0
+    private(set) var failedActionCount = 0
+    @ObservationIgnored private var refreshID = UUID()
     @ObservationIgnored private var assistantRefreshing = false
     @ObservationIgnored private var assistantRequestID = UUID()
     var interacting: Bool { busy || linkBusy }
@@ -39,7 +42,9 @@ final class AppModel {
     @ObservationIgnored private let defaults: UserDefaults
 
     var selected: ConnectionProfile? { profiles.first { $0.id == selectedID } }
-    var canControl: Bool { RuntimePolicy.canControl(online: online, kind: selected?.kind, device: device, hub: hub) && !interacting }
+    /// Permission state alone. Views use it so an in-flight request does not restyle every control as unavailable.
+    var controlAllowed: Bool { RuntimePolicy.canControl(online: online, kind: selected?.kind, device: device, hub: hub) }
+    var canControl: Bool { controlAllowed && !interacting }
     var canUseAssistant: Bool {
         online && device?.control == "full" && selected?.kind == .computer
             && hub?.paired == true && hub?.stopped == false && hub?.control == "full"
@@ -64,6 +69,8 @@ final class AppModel {
         selectedID = id
         defaults.set(id?.uuidString, forKey: "native.selected")
         clearLiveState()
+        decisionError = nil
+        refreshID = UUID()
         refreshing = false
         assistantRefreshing = false
         guard let profile = selected else { return }
@@ -104,9 +111,9 @@ final class AppModel {
             guard pin.count == 6, pin.allSatisfy({ $0.isASCII && $0.isNumber }) else {
                 throw GatewayError.refused("Enter the six-digit PIN shown on your computer.")
             }
-            let certificateCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            if kind == .companion && certificateCode.range(of: "^[A-Z2-7]{4}-[A-Z2-7]{4}$", options: .regularExpression) == nil {
-                throw GatewayError.refused("Enter the certificate code as XXXX-XXXX from Settings → Remote → k-chain.")
+            let certificateCode = ConnectionProfile.normalizedCertificateCode(code)
+            if kind == .companion && certificateCode == nil {
+                throw GatewayError.refused("Enter the eight-character certificate code shown as XXXX-XXXX in Settings → Remote → k-chain.")
             }
             guard !profiles.contains(where: { $0.origin == origin }) else {
                 throw GatewayError.refused("This address is already saved. Select it in Connections, or forget it before pairing again.")
@@ -139,23 +146,30 @@ final class AppModel {
     }
 
     func refresh(includeCompanion: Bool = true) async {
-        guard let client, !refreshing else { return }
+        guard let client else { return }
         let current = generation
+        // The newest refresh wins. A cancelled poll that has not unwound yet must not block the tab that replaced it.
+        let requestID = UUID()
+        refreshID = requestID
         refreshing = true
-        defer { if current == generation { refreshing = false } }
+        defer { if current == generation, requestID == refreshID { refreshing = false } }
         do {
             let hello = try await client.get("/api/hello", as: GatewayModels.Hello.self)
             try Task.checkCancellation()
-            guard current == generation else { return }
+            guard current == generation, requestID == refreshID else { return }
             linkVersion = hello.companion_link
             device = hello.device
             online = true
             lastUpdated = .now
             connectionError = nil
         } catch {
-            guard current == generation, !Task.isCancelled else { return }
+            guard current == generation, requestID == refreshID, !Task.isCancelled else { return }
             clearLiveState()
-            connectionError = error.localizedDescription
+            if case GatewayError.http(401, _) = error {
+                connectionError = "This computer no longer recognizes this device. Forget the connection in Settings, then pair again."
+            } else {
+                connectionError = error.localizedDescription
+            }
             return
         }
 
@@ -164,11 +178,11 @@ final class AppModel {
                 // The gateway returns a complete snapshot for a cursor ahead of its sequence.
                 // Full snapshots avoid retaining deleted fields from its sparse patch feed.
                 let snapshot = try await client.get("/api/companion/events?since=999999999999&wait=0", as: GatewayModels.Companion.self)
-                guard current == generation, !Task.isCancelled else { return }
+                guard current == generation, requestID == refreshID, !Task.isCancelled else { return }
                 companion = snapshot
                 companionError = nil
             } catch {
-                guard current == generation, !Task.isCancelled else { return }
+                guard current == generation, requestID == refreshID, !Task.isCancelled else { return }
                 companion = nil
                 companionError = error.localizedDescription
             }
@@ -176,11 +190,11 @@ final class AppModel {
         if selected?.kind == .computer {
             do {
                 let snapshot = try await client.get("/app/status", as: GatewayModels.Hub.self)
-                guard current == generation, !Task.isCancelled else { return }
+                guard current == generation, requestID == refreshID, !Task.isCancelled else { return }
                 hub = snapshot
                 computerError = nil
             } catch {
-                guard current == generation, !Task.isCancelled else { return }
+                guard current == generation, requestID == refreshID, !Task.isCancelled else { return }
                 hub = nil
                 computerError = error.localizedDescription
             }
@@ -202,9 +216,11 @@ final class AppModel {
     func suspend() {
         // Invalidate every outstanding response, including manual refreshes outside the monitor task.
         generation = UUID()
+        refreshID = UUID()
         refreshing = false
         assistantRefreshing = false
         clearLiveState()
+        decisionError = nil
     }
 
     func refreshBoardLinks() async {
@@ -278,17 +294,22 @@ final class AppModel {
         // A request is not approval; /api/hello remains the source of permission state.
     }
 
-    func decide(_ decision: GatewayModels.Companion.Decision, allow: Bool) async {
+    /// The outcome is reported in the review sheet (`decisionError`); a global alert cannot present over it.
+    func decide(_ decision: GatewayModels.Companion.Decision, allow: Bool) async -> Bool {
+        decisionError = nil
         guard canControl, companion?.agents?.top?.identity == decision.identity else {
-            notice = "This decision changed. Refresh and review the current request."
-            return
+            decisionError = "This decision changed. Close this sheet and review the current request."
+            return false
         }
-        await perform(allow ? "Agent allowed" : "Agent denied", context: "controls") { client in
+        let accepted = await perform(allow ? "Agent allowed" : "Agent denied", context: "controls", alert: false) { client in
             try await client.decide(decision, allow: allow)
         }
         companion = nil
         await refresh()
+        return accepted
     }
+
+    func clearDecisionError() { decisionError = nil }
 
     func refreshAssistant() async {
         guard canUseAssistant, let client else { assistant = nil; return }
@@ -327,7 +348,8 @@ final class AppModel {
     }
 
     @discardableResult
-    private func perform(_ title: String, context: String, operation: (GatewayClient) async throws -> GatewayModels.Receipt) async -> Bool {
+    private func perform(_ title: String, context: String, alert: Bool = true,
+                         operation: (GatewayClient) async throws -> GatewayModels.Receipt) async -> Bool {
         guard let client, !busy, !linkBusy else { return false }
         let current = generation
         busy = true
@@ -346,7 +368,9 @@ final class AppModel {
         } catch {
             guard current == generation else { return false }
             record(title, error.localizedDescription, failed: true)
-            notice = error.localizedDescription + " If the connection was interrupted, check the computer before retrying."
+            let message = error.localizedDescription + " If the connection was interrupted, check the computer before retrying."
+            if alert { notice = message } else { decisionError = message }
+            failedActionCount += 1
             return false
         }
     }

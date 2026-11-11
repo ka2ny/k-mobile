@@ -20,7 +20,7 @@ Use a Mac with Xcode 27.1 / Swift 6.4 and an iOS 27 simulator or device. The pro
 4. For board Wi-Fi, open the board's setup screen and **Set up board Wi-Fi** in the app. Verify its six-digit Wi-Fi code, select/enter a network and wait for the board's connected response. Desktop enrollment remains on the board.
 5. To associate this phone through the desktop, select an online **Computer** connection, open **Link phone on your computer** and redeem the code from the board's **Phone** screen. This requires `companion_link: 1` and grants no control. Approve control separately on the desktop if desired.
 
-No signing identity or distribution settings are embedded. Saved desktop connections refresh while foregrounded. An enabled saved Bluetooth relay restores using CoreBluetooth; disconnecting disables automatic reconnection. No Bluetooth scan runs continuously.
+No signing identity or distribution settings are embedded. Saved desktop connections refresh while foregrounded; the address field accepts a bare host and assumes HTTPS. An enabled saved Bluetooth relay restores using CoreBluetooth; disconnecting disables automatic reconnection. No Bluetooth scan runs continuously.
 
 ## Validation commands
 
@@ -66,7 +66,7 @@ Native WebRTC streaming, file transfer/share extensions, Assistant attachments/h
 - Each desktop connection uses an ephemeral URLSession. In-memory HttpOnly cookies preserve gateway semantics; redirects and API caching are disabled. No tokens/cookies are passed to browser links or to the board.
 - Desktop controls require authenticated permissions. Pairing, control requests, Bluetooth authorization and S6 association do not imply control approval. Unsupported link versions/grants fail closed.
 - Wi-Fi credentials follow successful Security 1 device-proof verification. One CTR context spans handshake and both directions. Interruptions terminate the session; no insecure fallback or automatic PoP retries. Only a board-reported connected state with an address means success.
-- Foreground desktop polling runs every five seconds on interactive tabs, every fifteen seconds on idle tabs, and backs off to thirty seconds on connection failures; Assistant polls every three seconds while selected. Backgrounding invalidates live controls and stops Wi-Fi setup. Relay callbacks and TCP buffers are bounded and connection-scoped.
+- Foreground desktop polling runs every five seconds on interactive tabs, every fifteen seconds on idle tabs, and backs off to thirty seconds on connection failures; Assistant polls every three seconds while selected. Backgrounding invalidates live controls and stops Wi-Fi setup; a transient inactive phase (system alert, accessory picker, app switcher) only pauses polling. Relay callbacks and TCP buffers are bounded and connection-scoped.
 - Bluetooth background mode and restoration are configured, but sustained background TCP is not guaranteed by that configuration. The UI recommends keeping the app open. Locked/suspended/restored iPhone behavior requires measurement before any background-reliability claim.
 - Actions are not automatically retried. A lost response may follow actual execution; errors ask the user to check before retrying. Local desktop forgetting does not revoke access on the computer. Accessory forgetting and S6 unlinking are independent.
 
@@ -76,8 +76,9 @@ Latest firmware/OS contracts, ticket status and exact source hashes are in [prov
 
 Executed in this Linux workspace on 2026-11-11:
 
-- Portable Swift 6.2.4 package: 22 protocol and gateway contract tests compiled and passed. Includes malformed/oversized messages, unsafe destinations, credit limits, known protobuf bytes, connected-state requirements, capability/grant validation and unsafe origins.
+- Portable Swift 6.2.4 package: 24 protocol and gateway contract tests compiled and passed. Includes malformed/oversized messages, unsafe destinations, credit limits, known protobuf bytes, connected-state requirements, capability/grant validation and unsafe origins.
 - Swift compiler frontend parsed every app and native-test source. This is syntax validation, not Apple SDK type-checking.
+- The non-SwiftUI layer (protocol, gateway client, app state, accessory model, relay, Security 1) type-checked in Swift 6 mode on Linux against hand-written stand-ins for CoreBluetooth, AccessorySetupKit, Network, CryptoKit and CommonCrypto. This checks internal consistency and concurrency rules only; the stand-ins are not Apple’s SDK, and no SwiftUI view was type-checked.
 - Generated Xcode project, source/resource references, plist, scheme and icon metadata checked.
 - `npm test`: four extraction tests passed, including 12 JavaScript syntax checks and 47 cache references. Original PWA hashes remain unchanged.
 

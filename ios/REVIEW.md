@@ -37,11 +37,35 @@ Added XCUITest navigation checks, disconnected-state assertions, screenshot atta
 
 ## Validation and release blockers
 
-- Passed locally: 22 portable Swift tests; eight CI helper tests; four extraction tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
+- Passed locally: 24 portable Swift tests (after the second pass below); eight CI helper tests; four extraction tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
 - GitHub PR #1: <https://github.com/ka2ny/k-mobile/pull/1>.
 - GitHub execution did not reach compilation. No Apple SDK or simulator results are available from this review. Resolve CI availability before retrying checks.
 - Unsigned IPA packaging now needs no Apple signing configuration. Use `ci/README.md` for the default pack-now/sign-later path; configure signing only for optional signed exports.
 - Native build/API/concurrency correctness, UI screenshots, Dynamic Type/VoiceOver, Reduce Motion and measured launch performance remain gates. The new XCUITest suite must run successfully, and screenshots must be inspected before calling the visual pass verified.
 - Physical iPhone/board bonding, wrong-code/reset/reconnect flows, TLS relay interoperability and locked/suspended background reliability remain unverified. Native SoftAP, streaming, files and voice remain outside the implemented native scope.
+
+## Second pass before packaging — 11 November 2026
+
+Source review of every Swift file, the project generator, plist and packaging path. Still **no Apple SDK build**: this Linux workspace has no Xcode, and GitHub run 43083457669 never started (“account is locked due to a billing issue”). Everything below is unverified on a device or simulator.
+
+| Severity | Finding | Change |
+| --- | --- | --- |
+| High | Any transient inactive phase (system alert, the accessory picker itself, Control Centre, app switcher) ran `suspend()` and wiped connection state, so pages flashed to “offline”. | Only backgrounding invalidates live state. Inactive stops polling and keeps what is shown. |
+| High | Cancelling Wi-Fi setup, or a board disconnect during it, surfaced a raw `CancellationError` string and overwrote the specific message already shown. | Cancellation is silent in authenticate/scan/join; the path that reset the transport owns the message. |
+| High | Reconnecting the same board waited indefinitely for a disconnect callback. Cancelling a still-pending connection is not guaranteed to deliver one, leaving every later connect blocked. | Three-second bound on the wait, then reconnect. |
+| High | A restored peripheral that was no longer connected was adopted and never reconnected; discovery was also issued before the central reported powered-on. | Adopt only connected/connecting peripherals; start discovery from the powered-on callback; drop stale peripherals after a Bluetooth reset. |
+| Medium | A cancelled poll that had not unwound blocked the next tab’s first refresh, so Controls stayed disabled for up to five seconds and claimed “Agent status is unavailable”. | Latest refresh wins; loading and unavailable are separate states. |
+| Medium | Agent decision failures raised a global alert underneath the review sheet, which then dismissed itself regardless of outcome. | The sheet stays open on failure and shows the error inline; it closes only after an accepted receipt. |
+| Medium | White label on the dark-mode accent (`borderedProminent`) measured 2.1:1. | `QuietProminentStyle` uses the canvas colour for its label: 5.3:1 light, 8.7:1 dark. |
+| Medium | Every key press disabled and restyled the whole control grid and inserted/removed rows beneath it. | Permission alone styles the keys; one fixed status row carries progress and receipts. |
+| Medium | `accessoryRemoved` compared two optionals (nil == nil disconnected an unrelated session) and left the saved accessory behind. Forget did nothing, silently, when the session was not active. | Compare with the saved identifier and clear it; report why Forget cannot run. |
+| Medium | Setup required `sec_patch_ver` in `proto-ver`; firmware built without that field would fail to decode. | Optional; absent or 0 accepted, anything else still refused. |
+| Low | Addresses needed a typed `https://`; certificate codes needed exact case and dash. | Bare hosts assume HTTPS only (explicit non-HTTPS schemes still refused); codes are normalized. Portable tests added. |
+| Low | Two competing calls to action on an empty Home; revoked tokens showed “Unauthorized (401)”; “1 active connections”; raw `full`/`view`; iPhone wording on iPad; grouped-grey lists beside warm pages; a launch screen in the system background rather than the canvas. | One action; a pair-again message; plural; labels; device-neutral copy; shared canvas on lists, forms and the launch screen; error haptic on a refused action. |
+| Low | Release built per-file; delegate completion handlers omitted `@Sendable`; a test helper shadowed its own result; key paths to actor-isolated state. | Whole-module Release, exact delegate signatures, `makeClient()`, closures. |
+
+First-build preparation: the pinned action commits and the `xcode-27` runner label were checked against GitHub and resolve; `Gemfile.lock` includes `arm64-darwin`. The evidence script no longer needs Python 3.11 (`hashlib.file_digest`), which would have failed after a successful archive on an older runner `python3`. Standard runpath settings were added to all three targets, and the pairing button’s decorative arrow is hidden from accessibility so the UI test finds “Pair securely” by its exact label.
+
+Not changed, still open: connections other than the selected one cannot be forgotten without selecting them first; notices raised while Settings is open still use the root alert; `ITSAppUsesNonExemptEncryption` is not declared (an export-compliance statement for the owner to make); AccessorySetupKit with state restoration and `canSendWriteWithoutResponse` stalls need a physical board.
 
 No IPA was packed, no PR was merged and no firmware/OS source was modified.

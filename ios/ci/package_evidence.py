@@ -12,8 +12,12 @@ ipa = output / os.environ.get("IOS_IPA_NAME", "KMobile.ipa")
 if not ipa.is_file() or not ipa.stat().st_size:
     raise SystemExit("Fastlane did not produce the requested IPA")
 def digest(path):
+    # Chunked by hand: hashlib.file_digest needs Python 3.11, and the runner's python3 is not pinned.
+    value = hashlib.sha256()
     with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            value.update(chunk)
+    return value.hexdigest()
 
 
 metadata = {

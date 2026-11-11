@@ -13,7 +13,9 @@ struct CompanionView: View {
                     .font(.largeTitle).bold().tracking(-1)
                 Text("The same desktop companion service your k-chain uses.")
                     .foregroundStyle(.secondary)
-                if !model.online {
+                if !model.online && model.selected != nil && model.refreshing && model.connectionError == nil {
+                    ProgressView("Connecting to your computer…").frame(maxWidth: .infinity).padding(Design.inset)
+                } else if !model.online {
                     ContentUnavailableView("Your companion is out of reach", systemImage: "wave.3.right.circle", description: Text("Select a connection and keep your computer awake."))
                 } else {
                     if let error = model.companionError {
@@ -22,15 +24,13 @@ struct CompanionView: View {
                     if model.device?.control != "full" {
                         Label("Full control needs approval on your computer.", systemImage: "hand.raised")
                             .foregroundStyle(.secondary)
+                        if model.selected?.kind == .computer {
+                            Button("Ask for full control") { Task { await model.requestControl() } }
+                                .buttonStyle(.bordered).controlSize(.large).disabled(model.interacting)
+                        }
                     }
-                    controls
                     if model.hub?.stopped == true { Label("Controls paused on your computer", systemImage: "pause.circle") }
-                    if model.busy { ProgressView("Waiting for your computer…") }
-                    if let receipt = model.lastReceipt, model.receiptContext == "controls" {
-                        Label(receipt, systemImage: "checkmark.circle")
-                            .font(.callout).foregroundStyle(.secondary)
-                            .transition(.opacity)
-                    }
+                    controls
                     agentCard
                     if let answer = model.companion?.answer, !answer.isEmpty {
                         VStack(alignment: .leading, spacing: Design.gap) {
@@ -41,6 +41,7 @@ struct CompanionView: View {
                 }
             }.quietPage().quietEntrance()
                 .quietStateAnimation(value: model.lastReceipt)
+                .quietStateAnimation(value: model.busy)
         }
         .background(Design.background)
         .navigationTitle("Controls")
@@ -63,13 +64,41 @@ struct CompanionView: View {
                         .padding(8)
                     }.buttonStyle(QuietControlStyle())
                 }
-            }.disabled(!model.canControl || model.companion == nil)
+            }
+            // Permission decides how the keys look; a request in flight only holds further taps.
+            .disabled(!model.controlAllowed || model.companion == nil)
+            .allowsHitTesting(!model.interacting)
             Button("Lock computer", systemImage: "lock") { confirmLock = true }
                 .buttonStyle(.bordered).controlSize(.large).disabled(!model.canControl)
                 .confirmationDialog("Lock your computer now?", isPresented: $confirmLock, titleVisibility: .visible) {
                     Button("Lock computer") { Task { await model.command(.lock) } }
                 }
+            statusLine
         }.quietCard()
+    }
+
+    /// One fixed row for progress and receipts, so a key press never moves the controls under a thumb.
+    private var statusLine: some View {
+        Group {
+            if model.busy {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Waiting for your computer…")
+                }
+            } else if let receipt = model.lastReceipt, model.receiptContext == "controls" || model.receiptContext == "permission" {
+                Label(receipt, systemImage: "checkmark.circle")
+            } else if model.controlAllowed && model.companion == nil && model.companionError == nil {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Loading controls…")
+                }
+            } else {
+                Text("Responses from your computer appear here.")
+            }
+        }
+        .font(.callout).foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private var agentCard: some View {
@@ -82,10 +111,12 @@ struct CompanionView: View {
                     Text(top.name).font(.title3).bold()
                     Text(top.summary ?? "Review the request on your computer.")
                     Button("Review request", systemImage: "arrow.up.right") { decision = top }
-                        .buttonStyle(.borderedProminent).controlSize(.large).disabled(!model.canControl)
+                        .buttonStyle(QuietProminentStyle()).disabled(!model.controlAllowed)
                 } else {
                     Text("Nothing needs a decision right now.").foregroundStyle(.secondary)
                 }
+            } else if model.companion == nil && model.companionError == nil {
+                Text("Checking for agent requests…").foregroundStyle(.secondary)
             } else {
                 Text("Agent status is unavailable. Enable the Agents connector on your computer.")
                     .foregroundStyle(.secondary)

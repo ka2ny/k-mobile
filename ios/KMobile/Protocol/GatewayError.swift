@@ -8,7 +8,7 @@ enum GatewayError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidAddress: "Enter an HTTPS address without a path, password, query or fragment."
+        case .invalidAddress: "Enter your computer’s HTTPS address, such as studio.example or https://studio.example:8445, without a path, password, query or fragment."
         case .invalidResponse: "The computer sent an unexpected response."
         case .missingCredential: "Pair this connection again. Its credentials are unavailable."
         case .certificateMismatch: "The certificate does not match. Check the address and certificate code on your computer."

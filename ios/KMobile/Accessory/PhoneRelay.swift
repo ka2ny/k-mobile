@@ -88,7 +88,7 @@ final class PhoneRelay {
                 case .ready:
                     stream.deadline?.cancel()
                     stream.ready = true
-                    self.changed(self.streams.values.filter(\.ready).count)
+                    self.changed(self.streams.values.filter { $0.ready }.count)
                     self.flush()
                 case .failed:
                     if stream.ready { self.close(stream.id) } else { self.next(stream, connection: connection) }
@@ -168,7 +168,7 @@ final class PhoneRelay {
     private func close(_ id: UInt8, notify: Bool = true) {
         let stream = streams.removeValue(forKey: id)
         stream?.deadline?.cancel(); stream?.connection?.cancel()
-        changed(streams.values.filter(\.ready).count)
+        changed(streams.values.filter { $0.ready }.count)
         if notify { enqueue(.init(kind: .close, stream: id)) }
     }
     private func enqueue(_ frame: RelayFrame) {

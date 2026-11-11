@@ -26,7 +26,7 @@ struct PairingView: View {
                     }
                     TextField("Name, such as Studio", text: $name)
                         .textContentType(.nickname)
-                    TextField("https://your-computer", text: $address)
+                    TextField("Address, such as studio.example", text: $address)
                         .textContentType(.URL).keyboardType(.URL)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                 }
@@ -64,13 +64,14 @@ struct PairingView: View {
                         HStack {
                             Text(model.busy ? "Pairing…" : "Pair securely")
                             Spacer()
-                            if model.busy { ProgressView() } else { Image(systemName: "arrow.right") }
+                            if model.busy { ProgressView() } else { Image(systemName: "arrow.right").accessibilityHidden(true) }
                         }.frame(minHeight: 44)
                     }
                     .disabled(model.busy || address.isEmpty || pin.count != 6)
                 }
             }
             .disabled(model.interacting)
+            .quietList()
             .navigationTitle("Make a connection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { pairingTask?.cancel(); dismiss() } } }
