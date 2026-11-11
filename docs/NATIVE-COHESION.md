@@ -17,15 +17,14 @@ This pass aligns the native SwiftUI app with the k-hole mobile shell. The extrac
 - Portable Swift package: 24 passing protocol tests in 3 suites.
 - Native Swift source syntax parse: passed. This is not an Apple SDK type-check or build.
 - Native asset checks enforce 4.5:1 contrast for normal text, status colors and accent control labels across both appearances, including pressed tint states. SVG geometry, template flags and provenance hashes are checked.
-- Existing pending CI/documentation edits were preserved byte-for-byte.
+- Codemagic run `6af4ddb6973779a703f1ec0a` passed with Xcode 27.0: 22 native cases and three UI tests, zero failures. `DesignTests` verified every glyph loads from the compiled asset catalog and adaptive colors resolve in both appearances.
+- Twelve original simulator screenshots were inspected: all five tabs in light/dark, empty pairing in light mode, and Settings in dark mode. The default Sage accent was used. No clipped controls or misleading connected/success states were observed in these captures.
+- The first rebuild found an ambiguous UI-test query matching both Home and the Connections sheet's “Add connection” buttons. A stable identifier on the sheet action fixed the query; the full suite passed on rerun without skipping tests.
+- The Release arm64 IPA is version **0.1.0 (7)** from `6ccbb701513fd88903c4b4e03f18d1faa8323200`. Its checksum, ZIP integrity, executable permissions and physical iOS Mach-O platform were verified. See [build evidence](../ios/REVIEW.md).
 
 ## Native verification still required
 
-Run the existing Xcode build and test pipeline on a supported Mac. New `DesignTests` verify every glyph loads from the compiled asset catalog and adaptive colors resolve; these tests are registered in the generated project but have not been run here.
-
-Review all five tabs, Connections, Pairing, Settings, decisions and accessory setup in light and dark mode. Switch all five accents, relaunch to check persistence, and exercise empty, offline, connecting, connected, view-only, failed and disabled states. Check large accessibility text, VoiceOver labels, Reduce Motion, Increase Contrast, narrow phones and iPad layouts. Confirm the accessory picker shows its new product glyph. Retest real pairing and commands against supported hardware/services.
-
-Prior simulator screenshots predate this pass and do not qualify these changes. This Linux environment cannot run Xcode or capture new native screenshots.
+Extend the simulator coverage to connected/failed/permission flows, decisions, accessory setup, dark Pairing and light Settings. Switch all five accents, relaunch to check persistence, and exercise connecting, connected, view-only and failed states. Check large accessibility text, VoiceOver labels, Reduce Motion, Increase Contrast, narrow phones and iPad layouts. Confirm the physical accessory picker shows its new product glyph. Retest real pairing and commands against supported hardware/services. These checks remain tracked in [issue #2](https://github.com/ka2ny/k-mobile/issues/2).
 
 ## Reproduce the component preview
 

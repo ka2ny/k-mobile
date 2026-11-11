@@ -34,9 +34,9 @@ Executed here:
 
 - Swift 6.2.4 compiled and ran the dependency-free protocol package: 24 Swift Testing tests passed, including parameterized malformed packets/destinations, desktop capability/grant checks and a deterministic input sweep.
 - The Swift compiler parsed all app/test source files. This does not type-check Apple-framework calls or compile an iOS application.
-- `npm test` passed all four extraction checks: original hashes, HTTP backend boundary, 12 JavaScript syntax checks and 47 worker cache references. PWA source/cache IDs are unchanged.
+- `npm test` passed seven extraction/design checks: original hashes, HTTP backend boundary, 12 JavaScript syntax checks and 47 worker cache references. PWA source/cache IDs are unchanged.
 
-The native Xcode tests include an independently generated Security 1 interoperability vector, certificate checks, origin/permission validation and HTTP errors/rate limits. Codemagic executed these tests with Xcode 27.0: 20 native cases and two UI tests passed, and an unsigned arm64 IPA was produced. No physical iPhone/board or live gateway interoperability was exercised. See [build verification](../ios/REVIEW.md).
+The native Xcode tests include an independently generated Security 1 interoperability vector, certificate checks, origin/permission validation and HTTP errors/rate limits. Codemagic executed these tests with Xcode 27.0: 22 native cases and three UI tests passed, and an unsigned arm64 IPA was produced. No physical iPhone/board or live gateway interoperability was exercised. See [build verification](../ios/REVIEW.md).
 
 Before release, complete the physical matrix in `ios/README.md`: picker authorization and mode changes, SMP accept/reject, revoked bonds, service changes, repeated setup, wrong PoP/password, cancellation and privacy stop. Critically, verify relay behavior while the phone is locked, suspended, killed/restored, moving between Wi-Fi and cellular, and losing its VPN. A PC phone-peer test in the firmware ticket is not evidence that iOS sustains background TCP. Do not advertise uninterrupted background connectivity until measured.
 

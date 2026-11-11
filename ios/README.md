@@ -4,11 +4,11 @@ Native SwiftUI app for your computer and physical k-chain. Includes Apple access
 
 ## Review, motion and performance
 
-[Review findings and validation limits](REVIEW.md) record the fixes, event-driven motion, polling/relay changes and outstanding device measurements. GitHub PR #1 is open. Codemagic built the unsigned IPA from commit `444811c9d4ef479d22c36240f06f617dd16a76ee` after native tests passed.
+[Review findings and validation limits](REVIEW.md) record the fixes, event-driven motion, polling/relay changes and outstanding device measurements. GitHub PR #1 is open. Codemagic built the unsigned IPA from commit `6ccbb701513fd88903c4b4e03f18d1faa8323200` after native tests passed.
 
 ## CI / IPA packaging
 
-[Codemagic, GitHub Actions and Fastlane setup](ci/README.md) covers simulator checks and unsigned IPA packaging for signing later. No Apple credentials are needed for the default unsigned path; signed Ad Hoc/App Store exports are optional. Codemagic produced version **0.1.0 (5)** for arm64 devices running **iOS 27+**.
+[Codemagic, GitHub Actions and Fastlane setup](ci/README.md) covers simulator checks and unsigned IPA packaging for signing later. No Apple credentials are needed for the default unsigned path; signed Ad Hoc/App Store exports are optional. Codemagic produced version **0.1.0 (7)** for arm64 devices running **iOS 27+**.
 
 ## Open and run
 
@@ -80,11 +80,11 @@ Executed in this Linux workspace on 2026-11-11:
 - Swift compiler frontend parsed every app and native-test source. This is syntax validation, not Apple SDK type-checking.
 - The non-SwiftUI layer (protocol, gateway client, app state, accessory model, relay, Security 1) type-checked in Swift 6 mode on Linux against hand-written stand-ins for CoreBluetooth, AccessorySetupKit, Network, CryptoKit and CommonCrypto. This checks internal consistency and concurrency rules only; the stand-ins are not Apple’s SDK, and no SwiftUI view was type-checked.
 - Generated Xcode project, source/resource references, plist, scheme and icon metadata checked.
-- `npm test`: four extraction tests passed, including 12 JavaScript syntax checks and 47 cache references. Original PWA hashes remain unchanged.
+- `npm test`: seven extraction/design tests passed, including 12 JavaScript syntax checks and 47 cache references. Original PWA hashes remain unchanged.
 
-Executed in Codemagic on 2026-11-11: the full Xcode build, 20 native test cases and two UI tests passed, including the Security 1 vector against CommonCrypto, certificate vectors, HTTP/cache behavior and Retry-After. Navigation, empty pairing cancellation and launch measurement ran on an iPhone simulator. Six light-mode screenshots were inspected for layout and state accuracy. The Release arm64 device archive was packaged without signing, and the downloaded IPA checksum, ZIP integrity and Mach-O platform were verified. See [the review evidence](REVIEW.md).
+Executed in Codemagic on 2026-11-11: the full Xcode build, 22 native test cases and three UI tests passed, including the Security 1 vector against CommonCrypto, certificate vectors, HTTP/cache behavior and Retry-After. Compiled glyph/color assets, navigation, empty pairing cancellation, dark appearance and launch measurement ran on an iPhone simulator. Twelve screenshots were inspected: all five tabs in light/dark, empty pairing in light mode, and Settings in dark mode. The Release arm64 device archive was packaged without signing, and the downloaded IPA checksum, ZIP integrity and Mach-O platform were verified. See [the review evidence](REVIEW.md).
 
-Still unverified: physical board/iPhone behavior, live gateway interoperability, dark mode/iPad/landscape and accessibility combinations, device performance, signing and App Store qualification.
+Still unverified: physical board/iPhone behavior, live gateway interoperability, iPad/landscape, accent switching/persistence and accessibility combinations, device performance, signing and App Store qualification.
 
 Before release, record results for:
 
@@ -96,6 +96,6 @@ Before release, record results for:
 
 ## Design and sources
 
-Warm neutral surfaces, violet accents and native system controls provide a restrained visual foundation. Finite page entrances, control press feedback and confirmed-action haptics respect accessibility settings. No decorative bitmap assets or perpetual animations are used. The unchanged k-hole SVG mark is rasterized at 1024 × 1024 for the app icon; hashes and the original notice are preserved. Native text uses system fonts and SF Symbols; PWA fonts/notices are intact.
+Adaptive graphite surfaces, a sage default accent and twelve matching outline glyphs align the native app with the k-hole mobile shell. Settings offers System, Light and Dark appearance plus Sage, Ice, Lilac, Rose and Amber accents. Finite page entrances, tint-only press feedback and confirmed-action haptics respect accessibility settings. No decorative bitmap assets or perpetual animations are used. The unchanged k-hole SVG mark is rasterized at 1024 × 1024 for the app icon; hashes and the original notice are preserved. Native text uses system fonts; SF Symbols remain for conventional actions. PWA fonts/notices are intact. See [the cohesion pass](../docs/NATIVE-COHESION.md) for asset provenance and validation.
 
 Guidance was consulted from [Swift Agent Skills](https://github.com/twostraws/swift-agent-skills) and [SwiftUI Pro](https://github.com/twostraws/SwiftUI-Agent-Skill/blob/main/swiftui-pro/SKILL.md). No skills were globally installed. Apple framework documentation and ESP-IDF v5.5.5 protocol definitions informed the independent implementation; no third-party framework is bundled.

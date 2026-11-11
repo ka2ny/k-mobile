@@ -1,6 +1,6 @@
 # Native review — 11 November 2026
 
-Review scope: native SwiftUI app, accessory/gateway lifecycle, motion, accessibility, request load and IPA pipeline. Existing PWA assets and their extraction baseline remain unchanged. The source review is now backed by a successful Xcode archive, native/UI tests and inspection of six simulator screenshots. Physical-device and live-backend qualification remains outstanding.
+Review scope: native SwiftUI app, accessory/gateway lifecycle, motion, accessibility, request load and IPA pipeline. Existing PWA assets and their extraction baseline remain unchanged. The source review and subsequent theme/icon pass are backed by a successful Xcode archive, 25 native/UI tests and inspection of twelve light/dark simulator screenshots. Physical-device and live-backend qualification remains outstanding.
 
 ## Findings addressed
 
@@ -22,7 +22,7 @@ Review scope: native SwiftUI app, accessory/gateway lifecycle, motion, accessibi
 ## Motion and interaction
 
 - A finite 280 ms, eight-point page entrance on Home, Controls and Assistant. Reduce Motion removes the displacement and entrance animation.
-- A 180 ms control press response with a small scale change and tint shift. Disabled controls remain visibly distinct; Increase Contrast strengthens their border. Reduce Motion removes the spring/scale.
+- A finite 140 ms control press tint/border transition, with no scaling. Disabled controls remain visibly distinct; Increase Contrast strengthens their border. Reduce Motion removes the animated transition.
 - A scoped 200 ms connection/receipt transition. No global animations on polling data and no perpetual symbol, glow, shimmer or background loops.
 - Success haptics only after a confirmed desktop action receipt. Pairing/authorization selection and network requests are never optimistic success events.
 - Native navigation/sheets retain their system transitions. Interactive keyboard dismissal is available in Assistant. Explanatory copy distinguishes physical k-chain pairing from the dedicated desktop listener.
@@ -33,15 +33,15 @@ The foreground monitor fetches companion snapshots only on Controls. Healthy Hom
 
 Relay reads can batch up to 4096 bytes within the available credit, then split into the actual BLE write limit. This reduces opportunities for socket callback overhead when the network provides larger reads; it is not a measured throughput claim. At most six streams exist, each with one bounded read, at most 4 KiB pending phone-to-board data and 64 KiB queued board-to-TCP data. Flush work yields after 16 writes and cannot recurse through close/enqueue. Status observation updates only when the stream count changes.
 
-Added XCUITest navigation checks, disconnected-state assertions, screenshot attachments for every main tab/pairing, and an application-launch metric. These run as part of the shared Xcode scheme and publish evidence with the test result bundle. They passed in Codemagic. The debug simulator launch metric averaged **10.158 seconds** across five recorded values, with **15.771% relative standard deviation** and no regression baseline. This is a noisy CI measurement, not evidence that device launch performance meets a target. Release launch time, FPS, energy and BLE throughput still need physical-device profiling.
+Added XCUITest navigation checks, disconnected-state assertions, light/dark screenshot attachments and an application-launch metric. These run as part of the shared Xcode scheme and publish evidence with the test result bundle. They passed in Codemagic. The latest debug simulator launch metric averaged **11.390 seconds** across five recorded values, with **23.201% relative standard deviation** and no regression baseline. The earlier build measured 10.158 seconds with 15.771% relative standard deviation. These noisy CI samples do not establish a regression, improvement or device performance target. Release launch time, FPS, energy and BLE throughput still need physical-device profiling.
 
 ## Validation and release blockers
 
-- Passed locally: 24 portable Swift tests (after the second pass below); 15 CI helper tests; four extraction tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
+- Passed locally: 24 portable Swift tests (after the second pass below); 15 CI helper tests; seven extraction/design tests (12 JavaScript syntax checks, 47 cache references); Swift compiler syntax parsing; actionlint; project/plist/scheme consistency.
 - GitHub PR #1: <https://github.com/ka2ny/k-mobile/pull/1>.
-- Codemagic passed the Xcode 27.0 device archive and simulator suite: 20 native cases plus two UI tests, zero failures. The Mac also passed 24 portable Swift tests, 15 CI helper tests and four PWA tests.
+- Codemagic passed the Xcode 27.0 device archive and simulator suite: 22 native cases plus three UI tests, zero failures. The Mac also passed 24 portable Swift tests, 15 CI helper tests and seven extraction/design tests.
 - Unsigned IPA packaging now needs no Apple signing configuration. Use `ci/README.md` for the default pack-now/sign-later path; configure signing only for optional signed exports.
-- Inspected the actual Home, k-chain, Controls, Assistant, Activity and empty-pairing screenshot attachments: no clipped controls or misleading connected/success states were observed in these light-mode captures. iPad, landscape, dark mode, Dynamic Type, VoiceOver, Increase Contrast and Reduce Motion still need broader qualification.
+- Inspected twelve actual screenshot attachments: Home, k-chain, Controls, Assistant and Activity in light/dark, empty pairing in light mode and Settings in dark mode. No clipped controls or misleading connected/success states were observed in these captures. Accent switching/persistence, iPad, landscape, Dynamic Type, VoiceOver, Increase Contrast, Reduce Motion and connected flows still need broader qualification.
 - Physical iPhone/board bonding, wrong-code/reset/reconnect flows, TLS relay interoperability and locked/suspended background reliability remain unverified. Native SoftAP, streaming, files and voice remain outside the implemented native scope.
 
 ## Second pass before packaging — 11 November 2026
@@ -70,11 +70,22 @@ Not changed, still open: connections other than the selected one cannot be forgo
 
 No IPA was packed during that source-review pass. The subsequent build below produced the IPA. No PR was merged and no firmware/OS source was modified.
 
-## Verified unsigned build
+## Initial verified unsigned build
 
 - Source: `444811c9d4ef479d22c36240f06f617dd16a76ee`, incorporating app changes through `8018349` and the Codemagic setup fixes.
 - Codemagic run: `6af4c9a0f5bbc9e274e0ac57`, completed successfully on 11 November 2026. Xcode 27.0 (27A266a), Mac mini M2, Ruby 3.3.12 and frozen Fastlane 2.241.2 dependencies.
 - Artifact: `KMobile-unsigned.ipa`, 614,582 bytes, version **0.1.0 (5)**, bundle ID `app.khole.mobile`, minimum **iOS 27.0**.
 - SHA-256: `9a7557416b42909b862f631a64cc529581b8f9c5b7dba1b36755b7fbd826ee07`. The downloaded file matches `build.json`; ZIP CRC, executable permissions, arm64 Mach-O and physical iOS platform were verified. No provisioning profile is embedded; external signing is required.
 - The test result bundle, six original screenshot attachments, JUnit report, archive log and dependency lockfile are retained with the build artifacts. Tests and screenshots exercise disconnected app behavior and synthetic protocol/HTTP vectors, not real accessory pairing or desktop actions.
-- Documentation updates after this build do not change the compiled application or workflow. The artifact remains identified by the source commit above.
+- This initial artifact predates the theme/icon pass. Its source and checksum remain recorded for comparison; the current build is below.
+
+## Verified theme and icon rebuild
+
+- Source: `6ccbb701513fd88903c4b4e03f18d1faa8323200`, including the graphite/sage theme, five accent choices, twelve outline glyphs, 140 ms tint-only press feedback and light/dark UI coverage.
+- Codemagic run: `6af4ddb6973779a703f1ec0a`, completed successfully at 21:41 UTC on 11 November 2026 with Xcode 27.0 (27A266a), Mac mini M2, Ruby 3.3.12 and frozen Fastlane 2.241.2 dependencies.
+- Artifact: `KMobile-unsigned.ipa`, **664,488 bytes**, version **0.1.0 (7)**, bundle ID `app.khole.mobile`, minimum **iOS 27.0**.
+- SHA-256: `8efca07b0028aa7f4122b2779ac3595f53a0f48f42d06126a70b45c6916c9a4b`. The downloaded file matches `build.json`; ZIP CRC, executable permissions, arm64 Mach-O and physical iOS platform were verified. No provisioning profile is embedded; external signing is required.
+- All 25 native/UI cases passed, including compiled glyph loading, adaptive color resolution, disconnected navigation, empty-pairing cancellation, dark navigation/Settings and launch measurement. The Mac also passed 24 portable Swift tests, 15 CI helper tests and seven extraction/design tests.
+- Twelve original screenshot attachments were retained and inspected. Coverage and remaining display/device checks are recorded in [the cohesion pass](../docs/NATIVE-COHESION.md).
+- The first theme run (`6af4d8a4eb9310aa963cc5d0`) compiled successfully but one UI test matched both “Add connection” buttons in the accessibility hierarchy. A stable identifier on the Connections sheet action fixed the selector; the full suite passed on rerun. That failed run produced no IPA.
+- The test result bundle, screenshots, JUnit report, archive/test logs, dependency lockfile and checksum are retained with the artifact. Documentation updates after this successful run do not change its compiled application or workflow. Physical accessory/backend qualification remains open in [issue #2](https://github.com/ka2ny/k-mobile/issues/2).
