@@ -1,9 +1,15 @@
 import Foundation
 
 enum CompanionCommand: String, CaseIterable, Identifiable {
-    case previous = "media.previous", playPause = "media.toggle", next = "media.next"
-    case quieter = "volume.down", mute = "volume.mute", louder = "volume.up"
-    case focusOn = "dnd.on", focusOff = "dnd.off", lock = "lock"
+    case previous = "media.previous"
+    case playPause = "media.toggle"
+    case next = "media.next"
+    case quieter = "volume.down"
+    case mute = "volume.mute"
+    case louder = "volume.up"
+    case focusOn = "dnd.on"
+    case focusOff = "dnd.off"
+    case lock = "lock"
     var id: Self { self }
     var title: String {
         switch self {
@@ -20,13 +26,13 @@ enum CompanionCommand: String, CaseIterable, Identifiable {
     }
     var symbol: String {
         switch self {
-        case .previous: "backward.end.fill"
-        case .playPause: "playpause.fill"
-        case .next: "forward.end.fill"
+        case .previous: "backward.end"
+        case .playPause: "playpause"
+        case .next: "forward.end"
         case .quieter: "speaker.wave.1"
         case .mute: "speaker.slash"
         case .louder: "speaker.wave.3"
-        case .focusOn: "moon.fill"
+        case .focusOn: "moon"
         case .focusOff: "sun.max"
         case .lock: "lock"
         }

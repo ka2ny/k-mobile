@@ -9,27 +9,28 @@ struct CompanionView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Design.inset) {
-                Text("A small gesture.\nA little more flow.")
-                    .font(.largeTitle).bold().tracking(-1)
-                Text("The same desktop companion service your k-chain uses.")
-                    .foregroundStyle(.secondary)
+                PageHeading(title: "Computer controls", detail: "Media, focus and agent requests.")
                 if !model.online && model.selected != nil && model.refreshing && model.connectionError == nil {
                     ProgressView("Connecting to your computer…").frame(maxWidth: .infinity).padding(Design.inset)
                 } else if !model.online {
-                    ContentUnavailableView("Your companion is out of reach", systemImage: "wave.3.right.circle", description: Text("Select a connection and keep your computer awake."))
+                    QuietEmptyState(
+                        title: "Your companion is out of reach",
+                        detail: "Select a connection and keep your computer awake.", icon: .controls)
                 } else {
                     if let error = model.companionError {
-                        Label(error, systemImage: "exclamationmark.circle").foregroundStyle(.secondary)
+                        Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Design.muted)
                     }
                     if model.device?.control != "full" {
                         Label("Full control needs approval on your computer.", systemImage: "hand.raised")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Design.muted)
                         if model.selected?.kind == .computer {
                             Button("Ask for full control") { Task { await model.requestControl() } }
-                                .buttonStyle(.bordered).controlSize(.large).disabled(model.interacting)
+                                .buttonStyle(QuietSecondaryStyle()).disabled(model.interacting)
                         }
                     }
-                    if model.hub?.stopped == true { Label("Controls paused on your computer", systemImage: "pause.circle") }
+                    if model.hub?.stopped == true {
+                        Label("Controls paused on your computer", systemImage: "pause.circle")
+                    }
                     controls
                     agentCard
                     if let answer = model.companion?.answer, !answer.isEmpty {
@@ -52,12 +53,17 @@ struct CompanionView: View {
 
     private var controls: some View {
         VStack(alignment: .leading, spacing: Design.inset) {
-            Label("Set the pace", systemImage: "music.note").font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: typeSize.isAccessibilitySize ? 260 : 120), spacing: Design.gap)], spacing: Design.gap) {
+            MobileLabel("Media & focus", icon: .controls).font(.headline)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: typeSize.isAccessibilitySize ? 260 : 120), spacing: Design.gap)],
+                spacing: Design.gap
+            ) {
                 ForEach(CompanionCommand.allCases.filter { $0 != .lock }) { command in
-                    Button { Task { await model.command(command) } } label: {
+                    Button {
+                        Task { await model.command(command) }
+                    } label: {
                         VStack(spacing: 12) {
-                            Image(systemName: command.symbol).font(.title2).accessibilityHidden(true)
+                            Image(systemName: command.symbol).font(.title2.weight(.regular)).accessibilityHidden(true)
                             Text(command.title).font(.subheadline).multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity, minHeight: 84)
@@ -69,7 +75,7 @@ struct CompanionView: View {
             .disabled(!model.controlAllowed || model.companion == nil)
             .allowsHitTesting(!model.interacting)
             Button("Lock computer", systemImage: "lock") { confirmLock = true }
-                .buttonStyle(.bordered).controlSize(.large).disabled(!model.canControl)
+                .buttonStyle(QuietSecondaryStyle()).disabled(!model.canControl)
                 .confirmationDialog("Lock your computer now?", isPresented: $confirmLock, titleVisibility: .visible) {
                     Button("Lock computer") { Task { await model.command(.lock) } }
                 }
@@ -85,7 +91,9 @@ struct CompanionView: View {
                     ProgressView().controlSize(.small)
                     Text("Waiting for your computer…")
                 }
-            } else if let receipt = model.lastReceipt, model.receiptContext == "controls" || model.receiptContext == "permission" {
+            } else if let receipt = model.lastReceipt,
+                model.receiptContext == "controls" || model.receiptContext == "permission"
+            {
                 Label(receipt, systemImage: "checkmark.circle")
             } else if model.controlAllowed && model.companion == nil && model.companionError == nil {
                 HStack(spacing: 8) {
@@ -96,30 +104,30 @@ struct CompanionView: View {
                 Text("Responses from your computer appear here.")
             }
         }
-        .font(.callout).foregroundStyle(.secondary)
+        .font(.callout).foregroundStyle(Design.muted)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
     private var agentCard: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
-            Label("A moment of your attention", systemImage: "hand.raised.fingers.spread").font(.headline)
+            MobileLabel("Agent requests", icon: .agents).font(.headline)
             if let agents = model.companion?.agents {
                 Text("\(agents.working) working · \(agents.needs) waiting")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(Design.muted)
                 if let top = agents.top {
                     Text(top.name).font(.title3).bold()
                     Text(top.summary ?? "Review the request on your computer.")
                     Button("Review request", systemImage: "arrow.up.right") { decision = top }
                         .buttonStyle(QuietProminentStyle()).disabled(!model.controlAllowed)
                 } else {
-                    Text("Nothing needs a decision right now.").foregroundStyle(.secondary)
+                    Text("Nothing needs a decision right now.").foregroundStyle(Design.muted)
                 }
             } else if model.companion == nil && model.companionError == nil {
-                Text("Checking for agent requests…").foregroundStyle(.secondary)
+                Text("Checking for agent requests…").foregroundStyle(Design.muted)
             } else {
                 Text("Agent status is unavailable. Enable the Agents connector on your computer.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Design.muted)
             }
         }.quietCard()
     }

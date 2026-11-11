@@ -5,32 +5,46 @@ struct QuietControlStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.mobileAccent) private var accent
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(enabled ? Design.accent : .secondary)
-            .background(Design.accent.opacity(configuration.isPressed ? 0.16 : 0.06), in: .rect(cornerRadius: 18))
-            .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(Design.accent.opacity(contrast == .increased ? 0.5 : 0.14), lineWidth: 1) }
-            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.975)
-            .animation(reduceMotion ? nil : .snappy(duration: 0.18, extraBounce: 0), value: configuration.isPressed)
+            .foregroundStyle(enabled ? accent : Design.muted)
+            .background(
+                accent.opacity(configuration.isPressed ? 0.16 : 0.06), in: .rect(cornerRadius: Design.controlRadius)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.controlRadius).strokeBorder(
+                    accent.opacity(contrast == .increased ? 0.5 : 0.14), lineWidth: 1)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: Design.controlRadius))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }
 
-/// Primary action. The label takes the canvas colour: white text on the lighter dark-mode accent is only 2.1:1.
+/// Primary action keeps an opaque accent and a measured light/dark foreground pair.
 struct QuietProminentStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.mobileAccent) private var accent
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
-            .foregroundStyle(enabled ? Design.background : Color.secondary)
+            .foregroundStyle(enabled ? Design.onAccent : Design.muted)
             .padding(.horizontal, 20)
             .frame(minHeight: 50)
-            .background(enabled ? Design.accent.opacity(configuration.isPressed ? 0.82 : 1) : Color.secondary.opacity(0.16),
-                        in: .rect(cornerRadius: 16))
-            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.98)
-            .animation(reduceMotion ? nil : .snappy(duration: 0.18, extraBounce: 0), value: configuration.isPressed)
+            .background(
+                enabled ? accent : Design.muted.opacity(0.12),
+                in: .rect(cornerRadius: Design.controlRadius)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.controlRadius - 2)
+                    .strokeBorder(Design.onAccent.opacity(configuration.isPressed && enabled ? 0.45 : 0), lineWidth: 1)
+                    .padding(2).allowsHitTesting(false)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: Design.controlRadius))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }
 
@@ -58,7 +72,30 @@ private struct QuietStateAnimation<Value: Equatable>: ViewModifier {
 
 extension View {
     func quietEntrance() -> some View { modifier(QuietEntrance()) }
-    func quietStateAnimation<Value: Equatable>(value: Value) -> some View { modifier(QuietStateAnimation(value: value)) }
+    func quietStateAnimation<Value: Equatable>(value: Value) -> some View {
+        modifier(QuietStateAnimation(value: value))
+    }
+}
+
+struct QuietSecondaryStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.body.weight(.medium))
+            .foregroundStyle(configuration.role == .destructive ? Design.danger : Design.ink)
+            .padding(.horizontal, 16).frame(minHeight: 48)
+            .background(
+                Design.border.opacity(configuration.isPressed ? 0.3 : 0.12),
+                in: .rect(cornerRadius: Design.controlRadius)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.controlRadius)
+                    .strokeBorder(contrast == .increased ? Design.muted : Design.border, lineWidth: 1)
+            }
+            .opacity(enabled ? 1 : 0.5)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
+    }
 }
 
 struct ConnectionStatus: View {
@@ -66,16 +103,20 @@ struct ConnectionStatus: View {
     let checking: Bool
     let selected: Bool
     var body: some View {
-        HStack(spacing: 6) {
-            if checking { ProgressView().controlSize(.small) }
-            else { Image(systemName: online ? "checkmark.circle.fill" : "circle.dashed").accessibilityHidden(true) }
+        HStack(spacing: 8) {
+            if checking {
+                ProgressView().controlSize(.small)
+            } else {
+                Image(systemName: online ? "checkmark.circle" : "circle.dashed")
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundStyle(online ? Design.success : Design.muted)
+                    .accessibilityHidden(true)
+            }
             Text(checking ? "Connecting" : online ? "Connected" : selected ? "Offline" : "Not connected")
                 .fixedSize(horizontal: false, vertical: true)
         }
         .font(.subheadline.weight(.medium))
-        .foregroundStyle(online ? Design.accent : .secondary)
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(Design.accent.opacity(0.07), in: .capsule)
+        .foregroundStyle(Design.muted)
         .accessibilityElement(children: .combine)
         .quietStateAnimation(value: online)
     }

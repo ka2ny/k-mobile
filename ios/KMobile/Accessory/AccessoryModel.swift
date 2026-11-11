@@ -123,7 +123,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         let descriptor = ASDiscoveryDescriptor()
         descriptor.bluetoothServiceUUID = mode == .relay ? Self.relayService : Self.setupService
         descriptor.bluetoothNameSubstring = "k-chain-"
-        guard let image = UIImage(systemName: "key.horizontal") else { error = "The accessory picker image is unavailable."; return }
+        guard let image = UIImage(named: MobileGlyph.accessory.asset) else { error = "The accessory picker image is unavailable."; return }
         let item = ASPickerDisplayItem(name: "k-chain", productImage: image, descriptor: descriptor)
         pendingPicker = true
         let current = epoch

@@ -12,26 +12,40 @@ struct DecisionView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Agent request") {
-                    LabeledContent("Agent", value: decision.name)
-                    LabeledContent("Tool", value: decision.tool ?? "Unknown")
-                    Text(decision.summary ?? "No summary supplied.").textSelection(.enabled)
-                }
-                Section {
-                    Text("This is a shortened request summary. Inspect the full action on your computer if the scope is unclear.")
-                    if !isCurrent && !deciding { Label("This request changed. Close and review the current one.", systemImage: "clock.badge.exclamationmark") }
-                    if deciding { ProgressView("Waiting for your computer…") }
-                    if let error = model.decisionError {
-                        Label(error, systemImage: "exclamationmark.circle").foregroundStyle(.red)
+                Group {
+                    Section("Agent request") {
+                        LabeledContent("Agent", value: decision.name)
+                        LabeledContent("Tool", value: decision.tool ?? "Unknown")
+                        Text(decision.summary ?? "No summary supplied.").textSelection(.enabled)
                     }
-                    Button("Allow this request", systemImage: "checkmark.shield") { confirmAllow = true }
-                        .frame(minHeight: 44)
-                        .confirmationDialog("Allow this specific agent action?", isPresented: $confirmAllow, titleVisibility: .visible) {
-                            Button("Allow action") { decide(allow: true) }
-                        } message: { Text(decision.summary ?? decision.name) }
-                    Button("Deny request", systemImage: "xmark.shield", role: .destructive) { decide(allow: false) }
-                        .frame(minHeight: 44)
-                }.disabled(!isCurrent || !model.canControl)
+                    Section {
+                        Text(
+                            "This is a shortened request summary. Inspect the full action on your computer if the scope is unclear."
+                        )
+                        if !isCurrent && !deciding {
+                            Label(
+                                "This request changed. Close and review the current one.",
+                                systemImage: "clock.badge.exclamationmark")
+                        }
+                        if deciding { ProgressView("Waiting for your computer…") }
+                        if let error = model.decisionError {
+                            Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Design.danger)
+                        }
+                        Button("Allow this request", systemImage: "checkmark.shield") { confirmAllow = true }
+                            .frame(minHeight: 44)
+                            .confirmationDialog(
+                                "Allow this specific agent action?", isPresented: $confirmAllow,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Allow action") { decide(allow: true) }
+                            } message: {
+                                Text(decision.summary ?? decision.name)
+                            }
+                        Button("Deny request", systemImage: "xmark.shield", role: .destructive) { decide(allow: false) }
+                            .frame(minHeight: 44)
+                    }.disabled(!isCurrent || !model.canControl)
+                }
+                .listRowBackground(Design.surface)
             }
             .quietList()
             .navigationTitle("Review decision")

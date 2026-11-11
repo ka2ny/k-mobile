@@ -11,28 +11,28 @@ struct AppShell: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Home", systemImage: "square.grid.2x2", value: .home) {
+            Tab("Home", image: MobileGlyph.home.asset, value: .home) {
                 NavigationStack {
                     HomeView(showConnections: $showConnections)
                         .toolbar { connectionToolbar }
                 }
             }
-            Tab("k-chain", systemImage: "key.horizontal", value: .accessory) {
+            Tab("k-chain", image: MobileGlyph.accessory.asset, value: .accessory) {
                 NavigationStack { AccessoryView().toolbar { connectionToolbar } }
             }
-            Tab("Controls", systemImage: "wave.3.right", value: .companion) {
+            Tab("Controls", image: MobileGlyph.controls.asset, value: .companion) {
                 NavigationStack {
                     CompanionView()
                         .toolbar { connectionToolbar }
                 }
             }
-            Tab("Assistant", systemImage: "sparkle", value: .assistant) {
+            Tab("Assistant", image: MobileGlyph.assistant.asset, value: .assistant) {
                 NavigationStack {
                     AssistantView(isActive: selectedTab == .assistant)
                         .toolbar { connectionToolbar }
                 }
             }
-            Tab("Activity", systemImage: "clock", value: .activity) {
+            Tab("Activity", image: MobileGlyph.activity.asset, value: .activity) {
                 NavigationStack {
                     ActivityView()
                         .toolbar { connectionToolbar }
@@ -44,13 +44,22 @@ struct AppShell: View {
         .sensoryFeedback(.error, trigger: model.failedActionCount)
         .sheet(isPresented: $showConnections) { ConnectionsView() }
         .sheet(isPresented: $showSettings) { SettingsView() }
-        .alert("From your computer", isPresented: Binding(
-            get: { model.notice != nil }, set: { if !$0 { model.notice = nil } }
-        )) { Button("OK") { model.notice = nil } } message: { Text(model.notice ?? "") }
+        .alert(
+            "From your computer",
+            isPresented: Binding(
+                get: { model.notice != nil }, set: { if !$0 { model.notice = nil } }
+            )
+        ) {
+            Button("OK") { model.notice = nil }
+        } message: {
+            Text(model.notice ?? "")
+        }
         .task(id: "\(model.selectedID?.uuidString ?? "none")-\(scenePhase)-\(selectedTab)") {
             switch scenePhase {
             case .active:
-                await model.monitor(includeCompanion: selectedTab == .companion, interactive: selectedTab == .home || selectedTab == .companion || selectedTab == .assistant)
+                await model.monitor(
+                    includeCompanion: selectedTab == .companion,
+                    interactive: selectedTab == .home || selectedTab == .companion || selectedTab == .assistant)
             case .background:
                 model.suspend()
             default:
@@ -64,11 +73,21 @@ struct AppShell: View {
     @ToolbarContentBuilder
     private var connectionToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Button("Connections", systemImage: "desktopcomputer") { showConnections = true }
-                .disabled(model.interacting)
+            Button {
+                showConnections = true
+            } label: {
+                MobileLabel("Connections", icon: .computer)
+            }
+            .labelStyle(.iconOnly).accessibilityLabel("Connections")
+            .disabled(model.interacting)
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button("Settings", systemImage: "slider.horizontal.3") { showSettings = true }
+            Button {
+                showSettings = true
+            } label: {
+                MobileLabel("Settings", icon: .settings)
+            }
+            .labelStyle(.iconOnly).accessibilityLabel("Settings")
         }
     }
 }

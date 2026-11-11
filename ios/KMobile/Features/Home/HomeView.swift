@@ -3,19 +3,14 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @Binding var showConnections: Bool
+    @Environment(\.mobileAccent) private var accent
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Design.inset) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("YOUR PERSONAL ORBIT")
-                        .font(.subheadline.monospaced()).foregroundStyle(.secondary)
-                    Text("Your world.\nWithin reach.")
-                        .font(.largeTitle).bold().tracking(-1)
-                    Text("Your computer and k-chain, in one quiet place.")
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, Design.gap)
+                PageHeading(
+                    title: "Your computer", detail: "Controls, files and agents from this phone.",
+                    eyebrow: "K-HOLE / MOBILE")
 
                 connectionCard
 
@@ -26,20 +21,22 @@ struct HomeView: View {
                     if model.selected?.kind == .computer {
                         computerServices
                     } else {
-                        Label("Companion connection", systemImage: "wave.3.right")
+                        MobileLabel("Companion connection", icon: .controls)
                             .font(.headline)
-                        Text("Media, focus and agent decisions travel through your computer’s k-chain service. Add a Computer connection for Assistant and the mobile workspace.")
-                            .foregroundStyle(.secondary)
+                        Text(
+                            "Media, focus and agent decisions travel through your computer’s k-chain service. Add a Computer connection for Assistant and the mobile workspace."
+                        )
+                        .foregroundStyle(Design.muted)
                     }
                 } else {
-                    VStack(alignment: .leading, spacing: Design.gap) {
-                        Label("A little closer to everything", systemImage: "circle.hexagongrid")
-                            .font(.headline)
-                        Text("Add your computer for controls and Assistant. Open the k-chain tab to pair your physical accessory.")
-                            .foregroundStyle(.secondary)
-                        Button("Connect your computer", systemImage: "plus") { showConnections = true }
-                            .buttonStyle(QuietProminentStyle())
-                    }.quietCard()
+                    VStack(alignment: .leading, spacing: 8) {
+                        MobileLabel("Have a k-chain?", icon: .accessory).font(.headline)
+                        Text(
+                            "Pair your board in the k-chain tab. Its Bluetooth connection is separate from your computer connection."
+                        )
+                        .font(.callout).foregroundStyle(Design.muted)
+                    }.padding(.horizontal, 4)
+
                 }
             }.quietPage().quietEntrance()
         }
@@ -51,37 +48,55 @@ struct HomeView: View {
 
     private var connectionCard: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
-            HStack(alignment: .top) {
-                Image(systemName: model.selected?.kind == .companion ? "wave.3.right.circle" : "desktopcomputer")
-                    .font(.largeTitle).foregroundStyle(Design.accent).accessibilityHidden(true)
-                Spacer()
-                ConnectionStatus(online: model.online, checking: model.refreshing && !model.online, selected: model.selected != nil)
+            ViewThatFits(in: .horizontal) {
+                connectionIdentity
+                VStack(alignment: .leading, spacing: 12) {
+                    MobileIcon(model.selected?.kind == .companion ? .controls : .computer, size: 32).foregroundStyle(
+                        accent)
+                    ConnectionStatus(
+                        online: model.online, checking: model.refreshing && !model.online,
+                        selected: model.selected != nil)
+                }
             }
-            Text(model.selected?.name ?? "Make yourself at home")
-                .font(.title2).bold()
-            Text(model.selected?.origin.host ?? "Your first connection starts here.")
-                .font(.subheadline).foregroundStyle(.secondary).textSelection(.enabled)
+            Text(model.selected?.name ?? "Connect a computer")
+                .font(.title2.weight(.medium))
+            Text(model.selected?.origin.host ?? "Use the address and PIN in desktop Settings → Remote.")
+                .font(.subheadline).foregroundStyle(Design.muted).textSelection(.enabled)
             if let error = model.connectionError {
-                Text(error).font(.callout).foregroundStyle(.secondary)
+                Text(error).font(.callout).foregroundStyle(Design.muted)
             }
             if let date = model.lastUpdated, model.online {
                 Text("Updated \(date.formatted(date: .omitted, time: .shortened))")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(Design.muted)
             }
-            // Without a connection, the card below carries the single call to action.
+            // Keep one clear connection action in either state.
             if model.selected != nil {
                 Button("Switch connection", systemImage: "arrow.left.arrow.right") { showConnections = true }
-                    .buttonStyle(.bordered).controlSize(.large).disabled(model.interacting)
+                    .buttonStyle(QuietSecondaryStyle()).disabled(model.interacting)
+            } else {
+                Button("Add connection", systemImage: "plus") { showConnections = true }
+                    .buttonStyle(QuietProminentStyle()).disabled(model.interacting)
             }
         }.quietCard()
     }
 
+    private var connectionIdentity: some View {
+        HStack(alignment: .center, spacing: 16) {
+            MobileIcon(model.selected?.kind == .companion ? .controls : .computer, size: 32).foregroundStyle(accent)
+            Spacer(minLength: 12)
+            ConnectionStatus(
+                online: model.online, checking: model.refreshing && !model.online, selected: model.selected != nil
+            )
+            .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
     private var permissionCard: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
-            Label("Your computer has the final say", systemImage: "hand.raised")
+            Label("Control permission", systemImage: "hand.raised")
                 .font(.headline)
             Text("Approve full control on the computer before using companion actions or Assistant.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Design.muted)
             if let code = model.device?.fp {
                 Text("Device code: \(code)").font(.body.monospaced()).textSelection(.enabled)
             }
@@ -90,7 +105,7 @@ struct HomeView: View {
                     .buttonStyle(QuietProminentStyle()).disabled(model.interacting)
                 if let receipt = model.lastReceipt, model.receiptContext == "permission" {
                     Text(receipt + " Approve on your computer. This page updates by itself.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.callout).foregroundStyle(Design.muted)
                 }
             } else {
                 Text("On your computer: Settings → Remote → this device → Full control.")
@@ -101,31 +116,42 @@ struct HomeView: View {
 
     private var computerServices: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
-            Text("Your workspace").font(.title2).bold()
+            Text("Workspace").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
             Text("Open the existing workspace in your browser. Browser pairing is separate from this app.")
-                .font(.callout).foregroundStyle(.secondary)
-            if let error = model.computerError { Text(error).font(.callout).foregroundStyle(.secondary) }
+                .font(.callout).foregroundStyle(Design.muted)
+            if let error = model.computerError { Text(error).font(.callout).foregroundStyle(Design.muted) }
             if model.hub?.stopped == true {
                 Label("Remote services are paused on your computer.", systemImage: "pause.circle")
             }
             if let profile = model.selected {
-                service("Remote", detail: "Your desktop, wherever you are", icon: "display", path: "remote/", ready: model.hub?.remote, profile: profile)
-                service("Beam & Files", detail: "Bring a file along", icon: "arrow.up.doc", path: "beam/", ready: model.hub?.beam, profile: profile)
-                service("Agents", detail: "Pick up where your agents left off", icon: "terminal", path: "agents/", ready: model.hub?.agents, profile: profile)
+                service(
+                    "Remote", detail: "View and control your desktop", icon: .remote, path: "remote/",
+                    ready: model.hub?.remote, profile: profile)
+                service(
+                    "Beam & Files", detail: "Send files and browse shared folders", icon: .beam, path: "beam/",
+                    ready: model.hub?.beam, profile: profile)
+                service(
+                    "Agents", detail: "Review and steer coding sessions", icon: .agents, path: "agents/",
+                    ready: model.hub?.agents, profile: profile)
             }
         }
     }
 
-    private func service(_ title: String, detail: String, icon: String, path: String, ready: Bool?, profile: ConnectionProfile) -> some View {
+    private func service(
+        _ title: String, detail: String, icon: MobileGlyph, path: String, ready: Bool?, profile: ConnectionProfile
+    ) -> some View {
         let available = model.online && ready == true && model.hub?.stopped != true
         return Link(destination: profile.origin.appending(path: path)) {
             HStack(spacing: Design.gap) {
-                Image(systemName: icon).font(.title2).foregroundStyle(Design.accent).accessibilityHidden(true)
+                MobileIcon(icon).foregroundStyle(accent)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.headline)
-                    Text(detail).font(.subheadline).foregroundStyle(.secondary)
-                    Text(ready == nil ? "Availability unknown" : ready == true ? "Enabled on computer" : "Off on computer")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    Text(detail).font(.subheadline).foregroundStyle(Design.muted)
+                    Text(
+                        ready == nil
+                            ? "Availability unknown" : ready == true ? "Enabled on computer" : "Off on computer"
+                    )
+                    .font(.footnote).foregroundStyle(Design.muted)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "arrow.up.right").accessibilityHidden(true)
