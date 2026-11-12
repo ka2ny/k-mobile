@@ -23,6 +23,8 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     private(set) var networks: [ProvisioningMessages.Network] = []
     private(set) var joinedAddress: String?
     private(set) var savedRelay = false
+    /// True from the moment a board is chosen in the system picker until the person closes the pairing sheet.
+    var pairSheet = false
     var error: String?
 
     @ObservationIgnored private let session = ASAccessorySession()
@@ -123,7 +125,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         let descriptor = ASDiscoveryDescriptor()
         descriptor.bluetoothServiceUUID = mode == .relay ? Self.relayService : Self.setupService
         descriptor.bluetoothNameSubstring = "k-chain-"
-        guard let image = UIImage(named: "KChainDevice") else { error = "The k-chain picture is missing from this build, so the system picker can't open. Reinstall the app."; return }
+        guard let image = UIImage(named: "KChainPicker") else { error = "The k-chain picture is missing from this build, so the system picker can't open. Reinstall the app."; return }
         let item = ASPickerDisplayItem(name: "k-chain", productImage: image, descriptor: descriptor)
         pendingPicker = true
         let current = epoch
@@ -161,6 +163,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             UserDefaults.standard.set(true, forKey: "accessory.relay.enabled")
         }
         status = "Connecting to \(name)…"
+        if mode == .relay { pairSheet = true }
         startCentral()
         connectKnown()
     }

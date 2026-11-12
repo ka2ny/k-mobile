@@ -6,6 +6,7 @@ struct AccessoryView: View {
     @State private var confirmForget = false
 
     var body: some View {
+        @Bindable var accessory = accessory
         List {
             Group {
                 Section {
@@ -78,6 +79,7 @@ struct AccessoryView: View {
         .navigationTitle("k-chain")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showSetup) { WiFiSetupView() }
+        .sheet(isPresented: $accessory.pairSheet) { KChainPairSheet() }
         .confirmationDialog("Forget this Bluetooth accessory?", isPresented: $confirmForget, titleVisibility: .visible)
         {
             Button("Forget accessory", role: .destructive) { accessory.forget() }
