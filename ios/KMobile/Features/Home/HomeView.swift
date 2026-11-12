@@ -117,7 +117,7 @@ struct HomeView: View {
     private var computerServices: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
             Text("Workspace").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
-            Text("Beam runs here in the app. Remote and Agents still open in your browser for now.")
+            Text("Beam and Agents run here in the app. Remote still opens in your browser for now.")
                 .font(.callout).foregroundStyle(Design.muted)
             if let error = model.computerError { Text(error).font(.callout).foregroundStyle(Design.muted) }
             if model.hub?.stopped == true {
@@ -137,9 +137,16 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 .disabled(!serviceAvailable(model.hub?.beam))
                 .opacity(serviceAvailable(model.hub?.beam) ? 1 : 0.6)
-                service(
-                    "Agents", detail: "Review and steer coding sessions", icon: .agents, path: "agents/",
-                    ready: model.hub?.agents, profile: profile)
+                NavigationLink {
+                    AgentsView()
+                } label: {
+                    serviceRow(
+                        "Agents", detail: "Review and steer coding sessions", icon: .agents,
+                        ready: model.hub?.agents, trailing: "chevron.right")
+                }
+                .buttonStyle(.plain)
+                .disabled(!serviceAvailable(model.hub?.agents))
+                .opacity(serviceAvailable(model.hub?.agents) ? 1 : 0.6)
             }
         }
     }
