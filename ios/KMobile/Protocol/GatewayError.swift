@@ -4,6 +4,8 @@ enum GatewayError: LocalizedError {
     case invalidAddress, invalidResponse, missingCredential, certificateMismatch
     case refused(String)
     case http(Int, String)
+    /// An Agents connector refusal: status, its code, its words.
+    case coded(Int, String, String)
     case rateLimited(Int, String)
     case needsPairing(String), needsControl(String)
 
@@ -18,6 +20,7 @@ enum GatewayError: LocalizedError {
         case .needsPairing(let message): "\(message) Pair this phone again from Connections."
         case .needsControl(let message): "\(message) Give this phone full control on your computer: Settings → Remote."
         case .http(let code, let message): "\(message) (\(code))"
+        case .coded(let status, let code, let message): message.isEmpty ? "\(code) (\(status))" : message
         }
     }
 }

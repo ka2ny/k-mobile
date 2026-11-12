@@ -86,6 +86,19 @@ final class GatewayClient: Sendable {
         try await request(path, body: JSONEncoder().encode(json), as: type)
     }
 
+    /// POST a command on the long session: an agent's command can take longer than a page read.
+    func command<B: Encodable, T: Decodable & Sendable>(_ path: String, json: B, as type: T.Type) async throws -> T {
+        try await request(path, body: JSONEncoder().encode(json), as: type, on: transfers)
+    }
+
+    /// scheme://host[:port], as a browser would send it.
+    static func origin(of url: URL) -> String {
+        let host = url.host ?? ""
+        var out = (url.scheme ?? "https") + "://" + (host.contains(":") ? "[" + host + "]" : host)
+        if let port = url.port { out += ":\(port)" }
+        return out
+    }
+
     /// POST raw bytes (a k-beam upload). URLSession sets Content-Length from the body, which khole-web requires.
     func upload<T: Decodable & Sendable>(_ path: String, data: Data, as type: T.Type) async throws -> T {
         try await request(path, body: data, contentType: "application/octet-stream", as: type)
@@ -129,6 +142,8 @@ final class GatewayClient: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
         if let body {
+            // The Agents connector refuses a POST whose Origin isn't the computer's own.
+            request.setValue(Self.origin(of: profile.origin), forHTTPHeaderField: "Origin")
             request.setValue(contentType ?? "application/json", forHTTPHeaderField: "Content-Type")
             request.setValue(String(body.count), forHTTPHeaderField: "Content-Length")
         }
@@ -139,6 +154,11 @@ final class GatewayClient: Sendable {
     /// khole-web answers {"error"}; khole-share {ok:false, error (a code), message (words)}: words first.
     private static func failure(_ response: HTTPURLResponse, _ data: Data) -> GatewayError {
         let failure = try? JSONDecoder().decode(GatewayModels.Failure.self, from: data)
+        // The Agents connector answers {error: CODE, message}; its code decides what the phone says.
+        if response.url?.path.hasPrefix("/agents/") == true, let code = failure?.error,
+           code.range(of: "^[A-Z][A-Z0-9_]{1,63}$", options: .regularExpression) != nil {
+            return .coded(response.statusCode, code, failure?.message ?? "")
+        }
         let message = failure?.message ?? failure?.error
             ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode)
         if response.statusCode == 429 {
