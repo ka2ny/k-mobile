@@ -24,9 +24,6 @@ struct AccessoryView: View {
                         }
                     }.padding(.vertical, 12)
                 }
-                if let error = accessory.error {
-                    Section { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Design.danger) }
-                }
                 Section {
                     Button(
                         accessory.savedRelay ? "Reconnect k-chain" : "Pair your k-chain",
@@ -34,6 +31,8 @@ struct AccessoryView: View {
                     ) {
                         if accessory.savedRelay { accessory.useSaved(.relay) } else { accessory.choose(.relay) }
                     }.disabled(accessory.working)
+                    // The result of pairing sits under the button that started it.
+                    if let error = accessory.error { PairingNote(text: error) }
                     if accessory.savedRelay {
                         Button("Choose another k-chain", systemImage: "plus") { accessory.choose(.relay) }.disabled(
                             accessory.working)
@@ -95,6 +94,23 @@ struct WiFiSetupView: View {
     @State private var password = ""
     @State private var openNetwork = false
     @State private var operation: Task<Void, Never>?
+    /// Which control acted last, so its progress and result show right under it.
+    @State private var lastAction: String?
+
+    /// Progress and the board's answer, shown under the control named by `action`.
+    @ViewBuilder private func boardNote(_ action: String) -> some View {
+        if lastAction == action || (lastAction == nil && action == "choose") {
+            if accessory.working {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Waiting for your board…").font(.callout).foregroundStyle(Design.muted)
+                }
+                .accessibilityElement(children: .combine)
+            } else if let error = accessory.error {
+                PairingNote(text: error)
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -116,20 +132,24 @@ struct WiFiSetupView: View {
                                 "Open Wi-Fi setup on your k-chain. Keep this app open until the board confirms its connection."
                             )
                             Button("Choose board", systemImage: "wifi") {
+                                lastAction = "choose"
                                 if accessory.savedRelay { accessory.useSaved(.setup) } else { accessory.choose(.setup) }
                             }.disabled(accessory.working)
                             Text(accessory.status).foregroundStyle(Design.muted)
+                            boardNote("choose")
                         }
                         if accessory.mode == .setup && accessory.ready && !accessory.setupAuthenticated {
                             Section("Verify your board") {
                                 SecureField("Six-digit Wi-Fi setup code", text: $code)
                                     .keyboardType(.numberPad).privacySensitive()
                                 Button("Verify") {
+                                    lastAction = "verify"
                                     operation = Task {
                                         await accessory.authenticate(code: code)
                                         code = ""
                                     }
                                 }.disabled(code.count != 6 || accessory.working)
+                                boardNote("verify")
                                 Text("Use the Wi-Fi setup code, not the Phone screen’s linking code.").font(.footnote)
                                     .foregroundStyle(Design.muted)
                             }
@@ -137,9 +157,11 @@ struct WiFiSetupView: View {
                         if accessory.setupAuthenticated {
                             Section("Wi-Fi network") {
                                 Button("Scan nearby networks", systemImage: "arrow.clockwise") {
+                                    lastAction = "scan"
                                     operation = Task { await accessory.scan() }
                                 }
                                 .disabled(accessory.working)
+                                boardNote("scan")
                                 ForEach(accessory.networks) { network in
                                     Button {
                                         ssid = network.ssid
@@ -166,15 +188,15 @@ struct WiFiSetupView: View {
                                         accessory.working)
                                 }
                                 Button("Connect board to Wi-Fi") {
+                                    lastAction = "join"
                                     operation = Task {
                                         _ = await accessory.join(ssid: ssid, password: openNetwork ? "" : password)
                                         password = ""
                                     }
                                 }.disabled(ssid.isEmpty || (!openNetwork && password.isEmpty) || accessory.working)
+                                boardNote("join")
                             }
                         }
-                        if accessory.working { Section { ProgressView("Waiting for your board…") } }
-                        if let error = accessory.error { Section { Text(error).foregroundStyle(Design.danger) } }
                         Section("If Bluetooth setup is unavailable") {
                             Text(
                                 "Use the board’s USB or SoftAP setup instructions. This app currently supports secure Bluetooth Wi-Fi setup; it does not join the setup hotspot. No Wi-Fi password is sent without verifying the board first."
@@ -238,6 +260,14 @@ struct BoardLinkView: View {
                         Button("Link phone") {
                             Task { if await model.linkBoard(code: code) { code = "" } }
                         }.disabled(code.count != 6 || model.linkBusy || model.busy || cooldownActive)
+                        if model.linkBusy {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Asking your computer…").font(.callout).foregroundStyle(Design.muted)
+                            }.accessibilityElement(children: .combine)
+                        } else if let error = model.linksError {
+                            PairingNote(text: error)
+                        }
                         if let retry = model.linkRetryAt, retry > .now {
                             Text("Try again after \(retry.formatted(date: .omitted, time: .standard)).")
                                 .foregroundStyle(Design.muted)
@@ -265,7 +295,6 @@ struct BoardLinkView: View {
                             ))
                     }
                 }
-                if let error = model.linksError { Section { Text(error).foregroundStyle(Design.danger) } }
             }
             .listRowBackground(Design.surface)
         }

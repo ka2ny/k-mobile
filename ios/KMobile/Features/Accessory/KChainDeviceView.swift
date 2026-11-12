@@ -11,6 +11,9 @@ struct KChainDeviceView: View {
         case wifi = "KChainFaceWiFi"
         case asking = "KChainFaceAsking"
 
+        /// The board is looking for the phone or waiting on it: the screen's light reaches out.
+        var searching: Bool { self == .pair || self == .thinking || self == .asking || self == .wifi }
+
         var words: String {
             switch self {
             case .pair: "Not paired yet"
@@ -36,6 +39,7 @@ struct KChainDeviceView: View {
         GeometryReader { proxy in
             let scale = min(proxy.size.width / Self.size.width, proxy.size.height / Self.size.height)
             ZStack(alignment: .topLeading) {
+                PairingHalo(active: face.searching && !reduceMotion, scale: scale)
                 Image(face.rawValue)
                     .resizable()
                     .interpolation(.high)
@@ -77,5 +81,34 @@ extension AccessoryModel {
             return .thinking
         }
         return savedRelay ? .idle : .pair
+    }
+}
+
+
+/// Two soft rings that leave the board's screen while it searches, like light from the hole. Nothing runs at rest.
+private struct PairingHalo: View {
+    let active: Bool
+    let scale: CGFloat
+    @State private var start = Date.now
+
+    var body: some View {
+        if active {
+            TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+                let t = context.date.timeIntervalSince(start)
+                ZStack {
+                    ForEach(0..<2, id: \.self) { ring in
+                        let phase = (t / 2.4 + Double(ring) / 2).truncatingRemainder(dividingBy: 1)
+                        RoundedRectangle(cornerRadius: 30 * scale, style: .continuous)
+                            .stroke(Color.accentColor.opacity(0.5 * (1 - phase)), lineWidth: 2 * scale)
+                            .frame(width: 200 * scale, height: 245 * scale)
+                            .scaleEffect(1 + 0.22 * phase)
+                    }
+                }
+                .frame(width: 280 * scale, height: 325 * scale)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .transition(.opacity)
+        }
     }
 }
