@@ -57,7 +57,7 @@ enum GatewayModels {
             guard ok else { throw GatewayError.refused(error ?? note ?? said ?? "The computer declined the action.") }
         }
     }
-    struct Failure: Decodable { let error: String?; let retry_after: Int? }
+    struct Failure: Decodable { let error: String?; let message: String?; let retry_after: Int?; let pair: Bool?; let control: Bool? }
     struct Companion: Decodable, Equatable, Sendable {
         let seq: Int
         let phase: String?
