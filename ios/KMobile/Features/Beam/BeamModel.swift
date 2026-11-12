@@ -352,7 +352,7 @@ final class BeamModel {
         return url.deletingLastPathComponent().appending(path: UUID().uuidString + (ext.isEmpty ? "" : "." + ext))
     }
 
-    static func words(_ error: Error, off: String? = nil) -> String {
+    nonisolated static func words(_ error: Error, off: String? = nil) -> String {
         if let off, case GatewayError.http(let code, _) = error, code == 404 || code == 502 || code == 503 { return off }
         if let urlError = error as? URLError {
             switch urlError.code {
