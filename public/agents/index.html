@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#181819">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Agents">
+  <title>Agents</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+  <link rel="stylesheet" href="/switch.css">
+  <script src="/switch.js" defer></script>
+</head>
+<body>
+  <!-- connecting: before the first answer -->
+  <section id="boot" class="screen center" aria-live="polite">
+    <button class="kh-home" type="button" data-khole-switch hidden aria-label="Other parts of k-hole: Remote and k-beam"><img src="icon.svg" alt="" width="28" height="28"></button>
+    <div class="mark" aria-hidden="true"></div>
+    <p class="muted">Reaching your computer…</p>
+  </section>
+
+  <!-- pairing: a one-use code from the computer -->
+  <section id="pair" class="screen center" hidden>
+    <button class="kh-home" type="button" data-khole-switch hidden aria-label="Other parts of k-hole: Remote and k-beam"><img src="icon.svg" alt="" width="28" height="28"></button>
+    <div class="mark" aria-hidden="true"></div>
+    <h1>Agents on this phone</h1>
+    <p id="pair-text" class="muted">Approve, deny, steer and stop your coding agents from here.</p>
+    <form id="pair-form" class="stack" hidden>
+      <label for="pair-name">This phone’s name</label>
+      <input id="pair-name" maxlength="80" autocomplete="off" value="iPhone">
+      <button class="primary big" type="submit">Connect</button>
+    </form>
+    <p id="pair-error" class="alert" role="alert" hidden></p>
+  </section>
+
+  <!-- the app -->
+  <div id="app" hidden>
+    <header class="top">
+      <button class="kh-home" type="button" data-khole-switch hidden aria-label="Other parts of k-hole: Remote and k-beam"><img src="icon.svg" alt="" width="28" height="28"></button>
+      <button id="host-button" class="host" type="button" aria-haspopup="dialog">
+        <span id="host-name">This computer</span><span class="chev" aria-hidden="true"></span>
+      </button>
+      <p id="summary" class="summary" aria-live="polite"></p>
+    </header>
+
+    <!-- Now: one card per agent, what needs you first -->
+    <main id="now" class="view" aria-label="Your agents">
+      <header class="mobile-heading"><p class="mobile-eyebrow">Your workspace</p><h1>Agents</h1><p class="muted">Sessions on your computer.</p></header>
+      <div id="cards" class="cards"></div>
+      <details id="earlier" class="earlier" hidden>
+        <summary><span>Earlier</span> <span id="earlier-count" class="count"></span></summary>
+        <ul id="earlier-list" class="rows"></ul>
+      </details>
+      <div id="empty" class="empty" hidden>
+        <h2>No agents yet</h2>
+        <p class="muted">Start one: pick a project and say what to do. It runs on your computer.</p>
+        <button class="primary big" type="button" data-go="start">Start an agent</button>
+      </div>
+      <p id="offline" class="alert" role="status" hidden></p>
+    </main>
+
+    <!-- one agent -->
+    <main id="agent" class="view" hidden aria-label="Agent">
+      <header class="agent-head">
+        <button id="back" class="icon-button" type="button" aria-label="Back to your agents"><span class="back" aria-hidden="true"></span></button>
+        <div class="who">
+          <h1 id="agent-name"></h1>
+          <p id="agent-meta" class="muted small"></p>
+        </div>
+        <button id="rename-agent" class="icon-button" type="button" hidden aria-label="Rename this session">Rename</button><span id="agent-state" class="pill"></span>
+      </header>
+      <details id="session-configuration" class="session-configuration" hidden><summary>Session settings</summary><div id="configuration-options"></div></details>
+      <div id="stream" class="stream" aria-live="off" tabindex="0" aria-label="Conversation"></div>
+      <button id="latest" class="latest" type="button" hidden>Latest</button>
+
+      <!-- the thumb pad: what this agent needs now -->
+      <section id="pad" class="pad" aria-label="What to do">
+        <section id="omp-panel" hidden aria-label="Native OMP controls">
+          <p id="omp-status" class="muted small" role="status"></p>
+          <div class="replies">
+            <button id="omp-observe" class="chip chip-touch" type="button">Connect live status</button>
+            <button id="omp-connect" class="chip chip-touch" type="button">Enable sending</button>
+            <button id="omp-disconnect" class="chip chip-touch" type="button">Disconnect</button>
+            <button id="omp-receipt" class="chip chip-touch" type="button">Check send receipt</button>
+            <button id="omp-stop-receipt" class="chip chip-touch" type="button">Check Stop receipt</button>
+          </div>
+          <form id="omp-form" hidden><textarea id="omp-text" rows="2" maxlength="16000" aria-label="Message to OMP" placeholder="Plain text for this native session…"></textarea><button id="omp-send" class="primary big" type="submit">Send</button></form>
+          <button id="omp-stop" class="big danger hold" type="button" hidden><span class="fill" aria-hidden="true"></span><span class="label">Hold to stop your turn</span></button>
+        </section>
+        <form id="questions" class="agent-questions" hidden aria-label="Questions from your agent"></form>
+        <div id="decision" class="decision" hidden>
+          <p class="decision-title" id="decision-title"></p>
+          <pre id="decision-what" class="what"></pre>
+          <details id="decision-detail" hidden><summary>Review full request</summary><pre id="decision-why" class="what"></pre></details>
+          <div class="pair-buttons">
+            <button id="deny" class="big" type="button">Deny</button>
+            <button id="allow" class="big primary hold" type="button" aria-describedby="hold-hint"><span class="fill" aria-hidden="true"></span><span class="label">Hold to allow</span></button>
+          </div>
+          <p id="hold-hint" class="sr-only">Press and hold to allow once.</p>
+        </div>
+        <div id="replies" class="replies" hidden></div>
+        <div id="saved" class="saved" hidden>
+          <p id="saved-text" class="muted"></p>
+          <button id="continue" class="primary big" type="button">Continue here</button>
+        </div>
+        <div class="pad-row">
+          <button id="say" class="big say" type="button"><span class="mic" aria-hidden="true"></span>Say something</button>
+          <button id="changes-button" class="big" type="button">Changes</button>
+          <button id="stop" class="big danger hold" type="button" hidden><span class="fill" aria-hidden="true"></span><span class="label">Hold to stop</span></button>
+        </div>
+      </section>
+    </main>
+
+    <!-- start an agent -->
+    <main id="start" class="view" hidden aria-label="Start an agent">
+      <h1>Start an agent</h1>
+      <p class="muted">Choose a coding tool and project. Its own sign-in and workspace policies apply.</p>
+      <h2 class="eyebrow">Project</h2>
+      <div id="projects" class="chips" role="radiogroup" aria-label="Project"></div>
+      <details class="native-sessions">
+        <summary>Add a workspace</summary>
+        <label for="workspace-path">Folder on the selected computer</label>
+        <input id="workspace-path" type="text" autocomplete="off" spellcheck="false" placeholder="/home/you/projects/new-project" maxlength="4096">
+        <p class="muted">New folders are created inside registered project roots. The parent folder must already exist.</p>
+        <div id="workspace-buttons" class="chips"><button id="workspace-add" type="button">Add existing</button><button id="workspace-create" type="button">New folder</button></div>
+        <details><summary>Git workspace</summary>
+          <label for="workspace-git-kind">Prepare from Git</label>
+          <select id="workspace-git-kind"><option value="clone">Clone repository</option><option value="worktree">Worktree of selected project</option></select>
+          <label for="workspace-source">Repository URL (clone)</label><input id="workspace-source" type="text" autocomplete="off" spellcheck="false" placeholder="https://host/owner/repository.git" maxlength="2048">
+          <label for="workspace-branch">New branch (worktree)</label><input id="workspace-branch" type="text" autocomplete="off" spellcheck="false" placeholder="work/my-task" maxlength="200">
+          <p class="muted">Uses the destination folder above and your computer’s Git authentication. No tokens in URLs. Existing branches are never reset.</p>
+          <button id="workspace-git-start" type="button">Prepare Git workspace</button>
+          <button id="workspace-job-cancel" type="button" hidden>Cancel preparation</button>
+        </details>
+        <p id="workspace-status" class="muted" role="status" aria-live="polite"></p>
+      </details>
+      <h2 class="eyebrow">Coding tool</h2>
+      <div id="create-engines" class="chips" role="radiogroup" aria-label="Coding tool"></div>
+      <section id="native-sessions" class="native-sessions" hidden aria-label="Saved native conversations">
+        <button id="browse-native" class="big" type="button">Browse saved Qwen conversations</button>
+        <p id="native-status" class="muted small" role="status"></p>
+        <div id="native-options"></div>
+        <button id="native-more" class="big" type="button" hidden>Next page</button>
+      </section>
+      <h2 class="eyebrow">What to do</h2>
+      <div id="intents" class="tiles"></div>
+      <textarea id="start-text" rows="3" placeholder="Or say it in your own words…" aria-label="What to do first"></textarea>
+      <button id="start-go" class="primary big" type="button" disabled>Start</button>
+    </main>
+
+    <!-- more: computers, this phone, quick replies, notifications -->
+    <main id="more" class="view" hidden aria-label="More">
+      <h1>More</h1>
+      <section class="group">
+        <h2 class="eyebrow">Tell me</h2>
+        <div class="setting">
+          <div><p>When an agent needs me</p><p id="push-note" class="muted small">A notification on your lock screen. Works once Agents is on your Home Screen.</p></div>
+          <button id="push-toggle" class="switch" type="button" role="switch" aria-checked="false" aria-label="Notify me when an agent needs me"></button>
+        </div>
+      </section>
+      <section class="group">
+        <h2 class="eyebrow">Quick replies</h2>
+        <ul id="reply-list" class="rows editable"></ul>
+        <div class="row-buttons">
+          <button id="reply-add" type="button">Add one</button>
+          <button id="reply-reset" type="button" class="ghost">Use the defaults</button>
+        </div>
+      </section>
+      <section class="group">
+        <h2 class="eyebrow">Your computers</h2>
+        <ul id="host-list" class="rows"></ul>
+        <form id="host-form" class="stack">
+          <label for="host-link">Add a computer: paste its pairing link</label>
+          <input id="host-link" inputmode="url" autocomplete="off" placeholder="https://…#pair=…">
+          <button type="submit">Add</button>
+        </form>
+      </section>
+      <section class="group">
+        <h2 class="eyebrow">This phone</h2>
+        <div class="setting">
+          <div><p id="device-name"></p><p class="muted small">Paired with <span id="device-host"></span></p></div>
+          <button id="disconnect" class="danger" type="button">Disconnect</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabs" aria-label="Agents">
+      <button type="button" data-go="now" aria-current="page"><span class="glyph now" aria-hidden="true"></span><span>Now</span><span id="tab-badge" class="badge" hidden></span></button>
+      <button type="button" data-go="start"><span class="glyph start" aria-hidden="true"></span><span>Start</span></button>
+      <button type="button" data-go="more"><span class="glyph more" aria-hidden="true"></span><span>More</span></button>
+    </nav>
+  </div>
+
+  <!-- sheets -->
+  <dialog id="rename-session" class="sheet" aria-label="Rename session">
+    <form id="rename-form">
+      <h2>Session name</h2><input id="rename-name" maxlength="80" autocomplete="off" aria-label="Session name" required>
+      <div class="pair-buttons"><button id="rename-cancel" type="button">Cancel</button><button id="rename-save" type="submit" class="primary">Rename</button></div>
+    </form>
+  </dialog>
+  <dialog id="compose" class="sheet" aria-label="Say something">
+    <form method="dialog" id="compose-form">
+      <textarea id="compose-text" rows="4" maxlength="16000" placeholder="Tell it what to do next…" aria-label="Message"></textarea>
+      <div class="row-buttons">
+        <button id="compose-mic" type="button" class="ghost" hidden><span class="mic" aria-hidden="true"></span>Dictate</button>
+        <span class="spacer"></span>
+        <button value="cancel" type="submit" class="ghost">Cancel</button>
+        <button id="compose-send" value="send" type="submit" class="primary">Send</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="changes" class="sheet tall" aria-label="Changes">
+    <header class="sheet-head"><h2>Changes</h2><button id="changes-close" class="ghost" type="button">Done</button></header>
+    <div class="segmented" role="tablist" aria-label="Which changes">
+      <button role="tab" type="button" data-view="unstaged" aria-selected="true">Not staged</button>
+      <button role="tab" type="button" data-view="staged" aria-selected="false">Staged</button>
+      <button role="tab" type="button" data-view="untracked" aria-selected="false">New files</button>
+    </div>
+    <p id="changes-summary" class="muted small"></p>
+    <ul id="change-files" class="rows files"></ul>
+    <pre id="change-lines" class="diff" hidden></pre>
+    <div class="row-buttons">
+      <button id="changes-explain" type="button">Explain these</button>
+      <button id="changes-commit" type="button" class="primary">Ask it to commit</button>
+    </div>
+  </dialog>
+  <dialog id="hosts" class="sheet" aria-label="Your computers">
+    <header class="sheet-head"><h2>Your computers</h2><button class="ghost" type="button" data-close>Done</button></header>
+    <ul id="host-pick" class="rows"></ul>
+  </dialog>
+
+  <!-- a quick reply on its way, with three seconds to take it back -->
+  <div id="undo" class="undo" role="status" hidden>
+    <span id="undo-text"></span>
+    <button id="undo-button" type="button">Undo</button>
+    <span class="bar" aria-hidden="true"></span>
+  </div>
+  <p id="toast" class="toast" role="status" hidden></p>
+</body>
+</html>

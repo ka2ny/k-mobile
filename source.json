@@ -1,0 +1,261 @@
+{
+  "repository": "https://github.com/ka2ny/k-flow-os",
+  "branch": "main",
+  "commit": "ce0977697fb11cb1958773e9568b95742a28d6be",
+  "commit_date": "2026-11-10T11:54:54-05:00",
+  "extracted_on": "2026-11-10",
+  "files": [
+    {
+      "source": "remote/app/DESIGN.md",
+      "path": "docs/UPSTREAM-DESIGN.md",
+      "sha256": "98963f571a327556d5a2006517f72af3694a7a568286995c8ec2a9eeac5caa86"
+    },
+    {
+      "source": "remote/app/FONT-LICENSE.txt",
+      "path": "public/FONT-LICENSE.txt",
+      "sha256": "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+    },
+    {
+      "source": "remote/app/assistant/assistant.css",
+      "path": "public/assistant/assistant.css",
+      "sha256": "c0d6d6686fe8a66e629f870e67a347d3adeb0d083296bd112d764958e0f2aec9"
+    },
+    {
+      "source": "remote/app/assistant/assistant.js",
+      "path": "public/assistant/assistant.js",
+      "sha256": "330becb26cad956f2046067708e3a0109c165b3f1aeab9e43d4fe6dcae4a8d71"
+    },
+    {
+      "source": "remote/app/assistant/index.html",
+      "path": "public/assistant/index.html",
+      "sha256": "d247644c00cfa2521d02af55017ca41613dc99b9d8b1c5a418d381c9f97392ba"
+    },
+    {
+      "source": "remote/app/hub.css",
+      "path": "public/hub.css",
+      "sha256": "e8f68d23dc6b25e857692f815909dc5facd3d01818f5be4a571d4b9eba9b190d"
+    },
+    {
+      "source": "remote/app/hub.js",
+      "path": "public/hub.js",
+      "sha256": "eac90c532c1dffa6b893eb130e228fa381a81b515f4bbbbaacecc28b89c8e567"
+    },
+    {
+      "source": "remote/app/index.html",
+      "path": "public/index.html",
+      "sha256": "d4c9f1aae806f8457dc0974256081df2e21a4e3faea58519e9ded81fe47f894f"
+    },
+    {
+      "source": "remote/app/manifest.webmanifest",
+      "path": "public/manifest.webmanifest",
+      "sha256": "98cd6f67ccc1f3b1c64c8693012b202fa9aed740c0235418530b4d45c653e959"
+    },
+    {
+      "source": "remote/app/mobile-mono.woff2",
+      "path": "public/mobile-mono.woff2",
+      "sha256": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7"
+    },
+    {
+      "source": "remote/app/mobile-sans.woff2",
+      "path": "public/mobile-sans.woff2",
+      "sha256": "e2291e842cf5af167122a22881a740c7f2dda7716f1e8cd76680264f4a859470"
+    },
+    {
+      "source": "remote/app/sw.js",
+      "path": "public/sw.js",
+      "sha256": "a928015efa82a58c275fbc91bda03b1148825b0880fad17e7fad32747704ed87"
+    },
+    {
+      "source": "remote/app/switch.css",
+      "path": "public/switch.css",
+      "sha256": "7b707410d776e5b305c71208c267ba416dc6f56110ddafdbabab91d5e6d6d38c"
+    },
+    {
+      "source": "remote/app/switch.js",
+      "path": "public/switch.js",
+      "sha256": "16e0400117e8bbc8a4075c37f7826cd334682a8608e6f25284e85a547249f88e"
+    },
+    {
+      "source": "remote/web/pwa/app.css",
+      "path": "public/remote/app.css",
+      "sha256": "70ae2f0aa8305c559f2502c6883fa641014fc1dfafa384b6f0c7109c6f476107"
+    },
+    {
+      "source": "remote/web/pwa/app.js",
+      "path": "public/remote/app.js",
+      "sha256": "42360737d558ba57f881e495df29bc23d01cd8ac70d2bbbde879068958e28ac6"
+    },
+    {
+      "source": "remote/web/pwa/apple-touch-icon.png",
+      "path": "public/remote/apple-touch-icon.png",
+      "sha256": "8f119035201be58eb9fb9ca2274a5306045b38f427549989868f257559b031a9"
+    },
+    {
+      "source": "remote/web/pwa/icon-192.png",
+      "path": "public/remote/icon-192.png",
+      "sha256": "42f4ce384dbb1a8602db41d91b1621f2e6fd52204b18d50e6c6a49ea3496d57e"
+    },
+    {
+      "source": "remote/web/pwa/icon-512.png",
+      "path": "public/remote/icon-512.png",
+      "sha256": "4cb660f22fa61d624c01e093328fc478bb2c52e890e804c322833ae4137a3e89"
+    },
+    {
+      "source": "remote/web/pwa/icon.svg",
+      "path": "public/remote/icon.svg",
+      "sha256": "f7a40608136e95d747c70516be624f9efe8dcba850797ad2bef0490189139ef4"
+    },
+    {
+      "source": "remote/web/pwa/index.html",
+      "path": "public/remote/index.html",
+      "sha256": "88d7e92375e660a1b223594a8b880d12a4daa2de7a8ac334a09a30cbed0b7fa2"
+    },
+    {
+      "source": "remote/web/pwa/manifest.webmanifest",
+      "path": "public/remote/manifest.webmanifest",
+      "sha256": "9de379346b8b977fd8d953ec999edffcc1ad3b3039ead7da323e797a7c222d89"
+    },
+    {
+      "source": "remote/web/pwa/sw.js",
+      "path": "public/remote/sw.js",
+      "sha256": "5017d14d26d7e1f84566c9cf529cb0698670b171caf62dded4ce427f00aabcdf"
+    },
+    {
+      "source": "remote/share/app.css",
+      "path": "public/beam/app.css",
+      "sha256": "eb2585c45f2e74cf051c65e501eec0237e2a7226941e3614a6776f0bbf78d193"
+    },
+    {
+      "source": "remote/share/app.js",
+      "path": "public/beam/app.js",
+      "sha256": "8b0b4330e33b94c55c12ff88d2c52c70a7807307eb13d5abafd722856330b491"
+    },
+    {
+      "source": "remote/share/index.html",
+      "path": "public/beam/index.html",
+      "sha256": "3a4dd8b354b47e956cabc70eb6825a08febdb8a8dfe59bae9a98dc72bee7004b"
+    },
+    {
+      "source": "remote/share/manifest.webmanifest",
+      "path": "public/beam/manifest.webmanifest",
+      "sha256": "4fe7be457164c0819c49be6161afd92492f8769b635e12ee8da250d97786c5db"
+    },
+    {
+      "source": "remote/share/sw.js",
+      "path": "public/beam/sw.js",
+      "sha256": "bee3eb85449554739298c940cd561c5ca2485cf59a9d07395db7d255f8c851ec"
+    },
+    {
+      "source": "agents/apps/web/remote/FONT-LICENSE.txt",
+      "path": "public/agents/FONT-LICENSE.txt",
+      "sha256": "7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da"
+    },
+    {
+      "source": "agents/apps/web/remote/QUIET-GLASS-LICENSE.md",
+      "path": "public/agents/QUIET-GLASS-LICENSE.md",
+      "sha256": "caa9c7e8c8a8add515710d297e86c8fcd1b74bd574c7a97414cd9ac347fcced6"
+    },
+    {
+      "source": "agents/apps/web/remote/app.css",
+      "path": "public/agents/app.css",
+      "sha256": "cf61a58dd80dcc3f8f3a600d3a717b68ca6645c5e0c401d915b95a8f5b258808"
+    },
+    {
+      "source": "agents/apps/web/remote/app.js",
+      "path": "public/agents/app.js",
+      "sha256": "d0a7025b6d563812957cde9f66208e58651fd1bff5619e7fb87539d57530f4e2"
+    },
+    {
+      "source": "agents/apps/web/remote/files.json",
+      "path": "public/agents/files.json",
+      "sha256": "8e6349be41ebe4490d5aa8273d7cb19bd6b0af48a1cb1fee6cba93cb2a35aa58"
+    },
+    {
+      "source": "agents/apps/web/remote/icon-180.png",
+      "path": "public/agents/icon-180.png",
+      "sha256": "79e80066ef4ffaa6c22084d84b79c6631ff2fc4fe49f778ccd955c29fa4157d8"
+    },
+    {
+      "source": "agents/apps/web/remote/icon.svg",
+      "path": "public/agents/icon.svg",
+      "sha256": "6c4abc61f1a7498d0382529623c25cc751170648ce682d00fc807fb72d305075"
+    },
+    {
+      "source": "agents/apps/web/remote/index.html",
+      "path": "public/agents/index.html",
+      "sha256": "873ee5ed7d516221c17cc57a081a590c6498236e1b2add538ca21f07fcf24695"
+    },
+    {
+      "source": "agents/apps/web/remote/manifest.webmanifest",
+      "path": "public/agents/manifest.webmanifest",
+      "sha256": "9d7a86faf771f20e4af93a55707832c751291b4984ef3ad5960bb3375ce17739"
+    },
+    {
+      "source": "agents/apps/web/remote/model.js",
+      "path": "public/agents/model.js",
+      "sha256": "088a286385cee3360c5d253b4ebfd0d93307ea6d4567e9b26ce1a737450de885"
+    },
+    {
+      "source": "agents/apps/web/remote/omp.js",
+      "path": "public/agents/omp.js",
+      "sha256": "c572b2deb031df587636d32d0ac7f049cf27314518b92cf9f42dea15d5f24d6e"
+    },
+    {
+      "source": "agents/apps/web/remote/plex-mono.woff2",
+      "path": "public/agents/plex-mono.woff2",
+      "sha256": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7"
+    },
+    {
+      "source": "agents/apps/web/remote/plex-sans.woff2",
+      "path": "public/agents/plex-sans.woff2",
+      "sha256": "e2291e842cf5af167122a22881a740c7f2dda7716f1e8cd76680264f4a859470"
+    },
+    {
+      "source": "agents/apps/web/remote/sw.js",
+      "path": "public/agents/sw.js",
+      "sha256": "2c2c58854226a010dbf9f6bf86f325cc6ae0dbea47a4fc08981f6bfe31c8b2b9"
+    },
+    {
+      "source": "agents/apps/web/remote/tokens.css",
+      "path": "public/agents/tokens.css",
+      "sha256": "5e7a8a16640078acc6c4fa3886594164c98605e17be76c11e40b1dba051b6b9c"
+    },
+    {
+      "source": "remote/web/pwa/icon.svg",
+      "path": "public/beam/icon.svg",
+      "sha256": "f7a40608136e95d747c70516be624f9efe8dcba850797ad2bef0490189139ef4"
+    },
+    {
+      "source": "remote/web/pwa/icon-192.png",
+      "path": "public/beam/icon-192.png",
+      "sha256": "42f4ce384dbb1a8602db41d91b1621f2e6fd52204b18d50e6c6a49ea3496d57e"
+    },
+    {
+      "source": "remote/web/pwa/icon-512.png",
+      "path": "public/beam/icon-512.png",
+      "sha256": "4cb660f22fa61d624c01e093328fc478bb2c52e890e804c322833ae4137a3e89"
+    },
+    {
+      "source": "remote/web/pwa/apple-touch-icon.png",
+      "path": "public/beam/apple-touch-icon.png",
+      "sha256": "8f119035201be58eb9fb9ca2274a5306045b38f427549989868f257559b031a9"
+    },
+    {
+      "source": "agents/apps/web/remote/QUIET-GLASS-LICENSE.md",
+      "path": "LICENSE.md",
+      "sha256": "caa9c7e8c8a8add515710d297e86c8fcd1b74bd574c7a97414cd9ac347fcced6"
+    }
+  ],
+  "adapted_tests": [
+    {
+      "source": "tests/remote/mobile_performance_test.js",
+      "path": "tests/mobile_performance.cjs",
+      "changes": "Local asset paths mapped to public; OS-history baseline disabled; assertions retained."
+    }
+  ],
+  "notes": [
+    "Production frontend files preserved byte-for-byte.",
+    "Beam icon aliases materialized from Remote, matching the upstream share server.",
+    "OS backend services and desktop Agents UI are not copied."
+  ]
+}

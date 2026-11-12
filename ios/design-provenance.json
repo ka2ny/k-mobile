@@ -1,0 +1,137 @@
+{
+  "scope": "Native visual cohesion; extracted PWA baseline unchanged",
+  "source_commit": "8018349",
+  "icons": [
+    {
+      "name": "remote",
+      "asset": "GlyphRemote",
+      "source": "public/switch.js",
+      "sha256": "aa67cc1504e2dc8e6049a874da37a9cea7f35c3e1cf1389ef2dddd1d9ed18d7c"
+    },
+    {
+      "name": "beam",
+      "asset": "GlyphBeam",
+      "source": "public/switch.js",
+      "sha256": "e113da0e3122549691a88c188f9daa3ba449b56d093e55bd30b4bfe1986c0330"
+    },
+    {
+      "name": "agents",
+      "asset": "GlyphAgents",
+      "source": "public/switch.js",
+      "sha256": "a7c3499a634c5833c2f78c552277a770e6bb55447a869d62ea55753d76096aab"
+    },
+    {
+      "name": "assistant",
+      "asset": "GlyphAssistant",
+      "source": "public/switch.js",
+      "sha256": "25977c64dd3efe9cd1ecb079cd6b9b0073a4ff87257101d1d4c6ab40d6e33231"
+    },
+    {
+      "name": "files",
+      "asset": "GlyphFiles",
+      "source": "public/switch.js",
+      "sha256": "96c508d5551f763acf9a36eb6719a608acf8c017645046025143a1006e59670e"
+    },
+    {
+      "name": "home",
+      "asset": "GlyphHome",
+      "source": "public/switch.js",
+      "sha256": "7a3b2aa44033097be7be1f3866e29e06f459b4e3990b8e985b5aca4cb27477af"
+    },
+    {
+      "name": "settings",
+      "asset": "GlyphSettings",
+      "source": "public/switch.js",
+      "sha256": "756ed730997b550ec175ca232a20ae5ff6c7aad740dd29f22f9c0c68c0d32862"
+    },
+    {
+      "name": "activity",
+      "asset": "GlyphActivity",
+      "source": "New companion glyph in the same 24-unit line family",
+      "sha256": "62a794bed6d5cfa213dbb3013421ca8e403b1ed15acfd41c9bce9dc0d534fdbb"
+    },
+    {
+      "name": "accessory",
+      "asset": "GlyphAccessory",
+      "source": "New companion glyph in the same 24-unit line family",
+      "sha256": "f11f2ce574194b2391df24f96c8504931e25e844a086568e812362f6ffb63045"
+    },
+    {
+      "name": "controls",
+      "asset": "GlyphControls",
+      "source": "New companion glyph in the same 24-unit line family",
+      "sha256": "0e3c7af62e1dacc4ecb8b015ceeed2f849f67a227682e8a005265082873be437"
+    },
+    {
+      "name": "computer",
+      "asset": "GlyphComputer",
+      "source": "New companion glyph in the same 24-unit line family",
+      "sha256": "581c6bd0c8be445781b65316c0e2af6d5ff819eb38cf259d4fec5959e16c59e2"
+    },
+    {
+      "name": "connection",
+      "asset": "GlyphConnection",
+      "source": "New companion glyph in the same 24-unit line family",
+      "sha256": "6085561e4084ddfbed5c0b307638522992a1ceb124ea585aa3e3c1edf302d976"
+    }
+  ],
+  "palette": {
+    "Canvas": {
+      "light": "#F2F3F1",
+      "dark": "#181819"
+    },
+    "Surface": {
+      "light": "#FBFCFA",
+      "dark": "#222223"
+    },
+    "AccentColor": {
+      "light": "#315A43",
+      "dark": "#B7D7C2"
+    },
+    "AccentIce": {
+      "light": "#285E79",
+      "dark": "#A8D6EF"
+    },
+    "AccentLilac": {
+      "light": "#62518B",
+      "dark": "#CABDF0"
+    },
+    "AccentRose": {
+      "light": "#854B61",
+      "dark": "#E8BBC7"
+    },
+    "AccentAmber": {
+      "light": "#76571E",
+      "dark": "#E4C38B"
+    },
+    "Ink": {
+      "light": "#202522",
+      "dark": "#F1F1F3"
+    },
+    "MutedInk": {
+      "light": "#58615A",
+      "dark": "#B6B6C0"
+    },
+    "Border": {
+      "light": "#CCD2CC",
+      "dark": "#414549"
+    },
+    "Success": {
+      "light": "#286741",
+      "dark": "#8CDBA8"
+    },
+    "Caution": {
+      "light": "#805314",
+      "dark": "#F3B549"
+    },
+    "Danger": {
+      "light": "#A92F40",
+      "dark": "#F08990"
+    },
+    "OnAccent": {
+      "light": "#FFFFFF",
+      "dark": "#17181C"
+    }
+  },
+  "notice": "../LICENSE.md"
+}

@@ -1,0 +1,129 @@
+/* The Assistant in the k-hole phone app: the hub's tokens and Frost cards, nothing that moves at rest. */
+.as-mark { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid var(--line2); background: transparent; color: var(--accent); cursor: pointer; }
+.as-mark svg { width: 24px; height: 24px; }
+.as-block { padding: 12px 14px; border-radius: 12px; background: var(--surface1); color: var(--ink2); }
+.as-pair { display: inline-flex; align-items: center; min-height: 44px; margin: 0 0 16px; color: var(--accent); text-decoration: none; font-size: 14px; }
+
+.as-card { margin-top: 8px; padding: 20px 18px; border-radius: 16px; border: 1px solid transparent; box-shadow: inset 0 1px 0 var(--line2), 0 4px 12px #0001; background: linear-gradient(155deg, var(--surface2), var(--surface1) 75%); }
+.as-card h2 { margin: 0 0 6px; font-size: 18px; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+.as-card + .as-card { margin-top: 14px; }
+.as-hint { margin: 0 0 14px; color: var(--ink-muted); font-size: 13px; line-height: 1.55; }
+.as-meta { margin: 0 0 12px; color: var(--ink-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.as-meta:empty { display: none; }
+.as-label { display: block; margin: 0 0 6px; color: var(--ink2); font-size: 13px; }
+
+.as-card textarea, .as-card input[type='text'] { display: block; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 12px; background: var(--surface1); box-shadow: inset 0 1px 2px #0004; color: var(--ink); font: inherit; font-size: 16px; resize: vertical; }
+.as-card textarea { min-height: 96px; }
+.as-card textarea::placeholder, .as-card input::placeholder { color: var(--ink-muted); }
+
+.as-primary, .as-safe, .as-stop { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 18px; border-radius: 22px; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; }
+.as-primary { border: 0; background: var(--accent); color: var(--bg); }
+.as-safe { border: 1px solid var(--line2); background: transparent; color: var(--ink); }
+.as-stop { width: 100%; margin-top: 18px; border: 1px solid var(--warn); background: transparent; color: var(--warn); }
+.as-primary[disabled], .as-safe[disabled], .as-stop[disabled] { opacity: .55; cursor: default; }
+#as-form .as-primary { margin-top: 12px; width: 100%; }
+#as-again { margin-top: 12px; }
+
+.as-result { padding: 8px 0 0; }
+.as-result.ok { color: var(--ok); }
+.as-result.away { color: var(--warn); }
+.eyebrow.ok { color: var(--ok); }
+.eyebrow.away { color: var(--warn); }
+
+.as-ask { margin: 14px 0; padding: 14px; border-radius: 14px; background: linear-gradient(115deg, var(--accent-tint), transparent), var(--surface1); box-shadow: inset 0 1px 0 var(--line2); }
+.as-handoff { margin: 14px 0; padding: 14px; border-radius: 14px; background: var(--surface1); box-shadow: inset 0 1px 0 var(--line2); }
+.as-handoff .as-link { display: inline-flex; align-items: center; text-decoration: none; }
+.as-ask-what { margin: 0 0 6px; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.as-row { display: flex; gap: 10px; margin-top: 10px; }
+.as-row > button { flex: 1; }
+.as-choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 10px; }
+.as-inline { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; margin-top: 10px; }
+.as-inline .as-label { grid-column: 1 / -1; margin: 0; }
+/* steering has two answers: the words get the whole width, the buttons share the row under them */
+#as-steer-form { grid-template-columns: 1fr; align-items: stretch; }
+#as-steer-form .as-row { margin-top: 0; }
+.as-row > button { white-space: nowrap; }
+
+.as-plan, .as-steps { list-style: none; margin: 12px 0 0; padding: 0; }
+.as-plan { border-top: 1px solid var(--line); }
+.as-plan li, .as-steps li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0 8px 18px; position: relative; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.as-plan li { border-bottom: 1px solid var(--line); color: var(--ink2); }
+.as-plan li::before, .as-steps li::before { content: ''; position: absolute; left: 2px; top: 15px; width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink-muted); }
+.as-plan-row.doing { color: var(--ink); }
+.as-plan-row.doing::before { border-color: var(--accent); background: var(--accent); }
+.as-plan-row.done { color: var(--ink-muted); }
+.as-plan-row.done::before { border-color: var(--ok); background: var(--ok); }
+.as-steps li { color: var(--ink-muted); font-size: 13px; }
+.as-step.run { color: var(--ink2); }
+.as-step.run::before { border-color: var(--accent); }
+.as-step.ok::before { border-color: var(--ok); }
+.as-step.fail::before, .as-step.denied::before { border-color: var(--warn); }
+.as-steps small, .as-plan small { color: var(--ink-muted); font-size: 12px; }
+.as-said { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--surface1); color: var(--ink); font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.as-said:empty { display: none; }
+
+#as-earlier .computer .what { overflow-wrap: anywhere; }
+
+@media (hover:hover) {
+  .as-primary:hover { filter: brightness(1.08); }
+  .as-safe:hover, .as-mark:hover { border-color: var(--accent); }
+  .as-stop:hover { background: color-mix(in srgb, var(--warn) 12%, transparent); }
+}
+.as-primary:active, .as-safe:active, .as-stop:active { transform: scale(.98); }
+@media (max-width:350px) { .as-card { padding: 16px 14px; } .as-inline { grid-template-columns: 1fr; } .as-row { flex-direction: column; } }
+@media (prefers-reduced-motion:reduce) { .as-primary:active, .as-safe:active, .as-stop:active { transform: none; } }
+html[data-mobile-motion='off'] .as-primary:active, html[data-mobile-motion='off'] .as-safe:active, html[data-mobile-motion='off'] .as-stop:active { transform: none; }
+.as-ask .as-how { margin: 10px 0 0; font-size: 12px; }
+
+/* who does it: one chip per assistant, a dot in its own colour */
+.as-who { margin: 0 0 14px; }
+.as-who-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.as-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 12px; border-radius: 22px; border: 1px solid var(--line2); background: transparent; color: var(--ink2); font: inherit; font-size: 14px; cursor: pointer; }
+.as-chip .as-dot { width: 10px; height: 10px; border-radius: 50%; background: hsl(var(--who-hue, 0) 45% 62%); }
+.as-chip.plain .as-dot { background: var(--accent); }
+.as-chip[aria-checked='true'] { border-color: var(--accent); background: var(--accent-tint); color: var(--ink); }
+
+/* your chats, each assistant's together */
+.as-group { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 18px 0 6px; }
+.as-group:first-child { margin-top: 4px; }
+.as-group h3 { margin: 0; color: var(--ink-muted); font-size: 12px; font-weight: 500; letter-spacing: .04em; overflow-wrap: anywhere; }
+.as-link, .as-back { min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 14px; cursor: pointer; }
+.as-back { margin: -10px 0 4px -4px; }
+.as-back::before { content: '‹ '; }
+
+/* one chat: what you asked, then how it went */
+.as-turns { list-style: none; margin: 12px 0 16px; padding: 0; }
+.as-turn { margin: 0 0 14px; }
+.as-you { margin: 0 0 6px auto; max-width: 88%; width: fit-content; padding: 10px 14px; border-radius: 14px; background: var(--accent-tint); color: var(--ink); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.as-it { max-width: 92%; padding: 10px 14px; border-radius: 14px; background: var(--surface1); box-shadow: inset 0 1px 0 var(--line2); }
+.as-it .eyebrow { margin: 0 0 4px; }
+.as-it p:not(.eyebrow) { margin: 0; color: var(--ink2); font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+#as-follow-form .as-primary { margin-top: 10px; width: 100%; }
+#as-done .as-row > button { flex: 1; margin-top: 12px; }
+#as-again { margin-top: 0; }
+.as-queue { list-style: none; margin: 10px 0 0; padding: 0; }
+.as-queue li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.as-queue li span { flex: 1; min-width: 0; }
+.as-find { margin: 0 0 12px; }
+.as-find input[type='search'] { display: block; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 12px; background: var(--surface1); box-shadow: inset 0 1px 2px #0004; color: var(--ink); font: inherit; font-size: 16px; }
+.as-new { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ink2); margin-right: 8px; vertical-align: middle; }
+.as-match { display: block; color: var(--ink2); font-size: 13px; margin-top: 2px; overflow-wrap: anywhere; }
+
+/* what an assistant remembers: read only here, changed in the window */
+.as-memory-open { display: block; margin: -4px 0 8px -4px; }
+.as-facts { list-style: none; margin: 8px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.as-facts li { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.as-facts small { color: var(--ink-muted); font-size: 12px; }
+.as-notes-title { margin: 18px 0 0; font-size: 14px; font-weight: 600; color: var(--ink2); }
+.as-notes strong { font-weight: 600; }
+.as-notes span { color: var(--ink2); white-space: pre-line; }
+.as-files { margin-top: 8px; }
+.as-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
+.as-attach { display: inline-flex; align-items: center; }
+.as-file-input:focus-visible + .as-attach { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.as-attached { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.as-attached li { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-height: 44px; padding: 0 4px 0 14px; border-radius: 22px; background: var(--surface2, rgba(255,255,255,.06)); color: var(--ink); font-size: 14px; }
+.as-attached li .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 14em; }
+.as-attached li .size { color: var(--ink2); font-size: 13px; }
+.as-attached li button { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--ink2); font: inherit; font-size: 18px; cursor: pointer; }
+.as-attached li[aria-busy='true'] { opacity: .6; }
