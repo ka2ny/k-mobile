@@ -30,7 +30,7 @@ Setup content scrolls at large text sizes. Idle artwork is static; the connectio
 
 The tests-only Codemagic workflow `ios-review` compiles the app and runs portable, native and UI checks without packaging an IPA. Native regression tests use real feature models and URLSession with a test-only server stub: successful diff rendering state, acknowledged/declined text, stale Beam preparation, a host switch during connector lookup, and a late Remote offer after disconnect. UI checks cover disconnected routes, light/dark appearance, introductory pairing cancellation and large text.
 
-Local PWA extraction checks: **7 passed**, including 12 JavaScript syntax checks and 47 worker-cache references. CI helper tests: **15 passed**. These changes do not modify `public/` or `source.json`; extraction provenance and cache IDs remain unchanged. Native CI results are recorded in the PR after the run completes.
+Local PWA extraction checks: **7 passed**, including 12 JavaScript syntax checks and 47 worker-cache references. CI helper tests: **15 passed**. These changes do not modify `public/` or `source.json`; extraction provenance and cache IDs remain unchanged. All **36 portable Swift tests** passed on Xcode 27. Native app/UI results are recorded in the PR after the run completes.
 
 ## Remaining work
 

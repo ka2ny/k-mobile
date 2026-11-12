@@ -63,6 +63,7 @@ final class BeamModel {
     private var askID: String?
     private var sessionID: String?
     private var sendTask: Task<Void, Never>?
+    private var sendAttempt = UUID()
 
     private let originGateway: GatewayClient?
     private let originGeneration: UUID
@@ -155,11 +156,12 @@ final class BeamModel {
     }
 
     func stopSending() {
+        sendAttempt = UUID()
         sendTask?.cancel()
         guard let gateway = originGateway else { sendState = .idle; return }
         let ask = askID, session = sessionID
         askID = nil; sessionID = nil
-        sendState = .failed("Stopped. Nothing more was sent.")
+        sendState = .failed("Stopped sending. Check the computer for anything that already arrived.")
         Task {
             if let ask { _ = try? await gateway.post(Self.path("/beam/api/cancel", ["ask": ask]), body: [:], as: OK.self) }
             if let session {
@@ -172,6 +174,8 @@ final class BeamModel {
         guard !sending else { return }
         guard gateway != nil else { sendState = .failed("Connect to your computer first."); return }
         sendState = .asking(seconds: 0)
+        let current = UUID()
+        sendAttempt = current
         sendTask = Task {
             do { try checkContext(); try await work() } catch is CancellationError {
                 // stopSending already said so.
@@ -180,7 +184,7 @@ final class BeamModel {
                 sendState = .failed(Self.words(error))
                 app.recordActivity("k-beam", "Send failed: \(Self.words(error))", failed: true)
             }
-            askID = nil; sessionID = nil
+            if current == sendAttempt { askID = nil; sessionID = nil }
         }
     }
 

@@ -96,7 +96,12 @@ workflows:
           cd ios
           bundle _2.5.22_ exec fastlane ios test
         test_report: ios/build/test-results/report.junit
+      - name: Export simulator screenshots
+        script: |
+          set -euo pipefail
+          xcrun xcresulttool export attachments --path ios/build/test-results/KMobile.xcresult --output-path ios/build/screenshots
     artifacts:
       - ios/build/logs/*.log
       - ios/build/test-results/**
+      - ios/build/screenshots/**
       - /tmp/xcodebuild_logs/*.log

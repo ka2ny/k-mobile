@@ -465,7 +465,7 @@ struct AssistantView: View {
                 "Paused on your computer", "Remote services are paused. Resume them on your computer to use Assistant."
             )
         }
-        return ("Full control needed", "Approve full control for this device on your computer. You can ask from Home.")
+        return ("Full control needed", "Approve full control for this device on your computer. You can ask from Computer.")
     }
 }
 

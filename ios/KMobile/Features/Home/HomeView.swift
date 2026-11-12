@@ -20,7 +20,7 @@ struct HomeView: View {
                 } label: {
                     serviceRow("Open Remote", detail: "Your desktop, with touch and sound", icon: .remote,
                                ready: model.hub?.remote, trailing: "arrow.up.right")
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).accessibilityIdentifier("computer.remote")
                 if model.selected != nil { ComputerControlsView() }
                 HStack(spacing: Design.gap) {
                     NavigationLink { ActivityView() } label: {
@@ -40,38 +40,45 @@ struct HomeView: View {
         .refreshable { await model.refresh(includeCompanion: true) }
     }
 
-    private var connectionCard: some View {
-        VStack(alignment: .leading, spacing: Design.gap) {
-            ViewThatFits(in: .horizontal) {
-                connectionIdentity
-                VStack(alignment: .leading, spacing: 12) {
-                    MobileIcon(model.selected?.kind == .companion ? .controls : .computer, size: 32).foregroundStyle(
-                        accent)
-                    ConnectionStatus(
-                        online: model.online, checking: model.refreshing && !model.online,
-                        selected: model.selected != nil)
+    @ViewBuilder private var connectionCard: some View {
+        if model.online {
+            HStack(spacing: Design.gap) {
+                MobileIcon(.computer, size: 28).foregroundStyle(accent)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(model.selected?.name ?? "Your computer").font(.headline)
+                    ConnectionStatus(online: true, checking: false, selected: true)
                 }
-            }
-            Text(model.selected?.name ?? "Connect a computer")
-                .font(.title2.weight(.medium))
-            Text(model.selected?.origin.host ?? "Use the address and PIN in desktop Settings → Remote.")
-                .font(.subheadline).foregroundStyle(Design.muted).textSelection(.enabled)
-            if let error = model.connectionError {
-                Text(error).font(.callout).foregroundStyle(Design.muted)
-            }
-            if let date = model.lastUpdated, model.online {
-                Text("Updated \(date.formatted(date: .omitted, time: .shortened))")
-                    .font(.footnote).foregroundStyle(Design.muted)
-            }
-            // Keep one clear connection action in either state.
-            if model.selected != nil {
-                Button("Switch connection", systemImage: "arrow.left.arrow.right") { showConnections = true }
-                    .buttonStyle(QuietSecondaryStyle()).disabled(model.interacting)
-            } else {
-                Button("Add connection", systemImage: "plus") { showConnections = true }
-                    .buttonStyle(QuietProminentStyle()).disabled(model.interacting)
-            }
-        }.quietCard()
+                Spacer(minLength: 0)
+            }.quietCard()
+        } else {
+            VStack(alignment: .leading, spacing: Design.gap) {
+                ViewThatFits(in: .horizontal) {
+                    connectionIdentity
+                    VStack(alignment: .leading, spacing: 12) {
+                        MobileIcon(model.selected?.kind == .companion ? .controls : .computer, size: 32).foregroundStyle(
+                            accent)
+                        ConnectionStatus(
+                            online: model.online, checking: model.refreshing && !model.online,
+                            selected: model.selected != nil)
+                    }
+                }
+                Text(model.selected?.name ?? "Connect a computer")
+                    .font(.title2.weight(.medium))
+                Text(model.selected?.origin.host ?? "Use the address and PIN in desktop Settings → Remote.")
+                    .font(.subheadline).foregroundStyle(Design.muted).textSelection(.enabled)
+                if let error = model.connectionError {
+                    Text(error).font(.callout).foregroundStyle(Design.muted)
+                }
+                // Keep one clear connection action in either state.
+                if model.selected != nil {
+                    Button("Switch connection", systemImage: "arrow.left.arrow.right") { showConnections = true }
+                        .buttonStyle(QuietSecondaryStyle()).disabled(model.interacting)
+                } else {
+                    Button("Add connection", systemImage: "plus") { showConnections = true }
+                        .buttonStyle(QuietProminentStyle()).disabled(model.interacting)
+                }
+            }.quietCard()
+        }
     }
 
     private var connectionIdentity: some View {

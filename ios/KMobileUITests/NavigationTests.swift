@@ -15,6 +15,11 @@ final class NavigationTests: XCTestCase {
         capture("Pairing-empty", app)
         app.buttons["Cancel"].tap()
         app.buttons["Done"].tap()
+        app.buttons["computer.remote"].tap()
+        XCTAssertTrue(app.navigationBars["Remote"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Connect a computer"].exists)
+        capture("Remote-Disconnected", app)
+        app.navigationBars["Remote"].buttons["Computer"].tap()
         for title in ["Beam", "Agents", "Assistant", "k-chain"] {
             app.tabBars.buttons[title].tap()
             XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 3))
