@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AccessoryView: View {
     @Environment(AccessoryModel.self) private var accessory
-    @Environment(\.mobileAccent) private var accent
     @State private var showSetup = false
     @State private var confirmForget = false
 
@@ -11,7 +10,9 @@ struct AccessoryView: View {
             Group {
                 Section {
                     VStack(alignment: .leading, spacing: 16) {
-                        MobileIcon(.accessory, size: 36).foregroundStyle(accent)
+                        KChainDeviceView(face: accessory.face)
+                            .frame(maxWidth: 220, maxHeight: 255)
+                            .frame(maxWidth: .infinity)
                         Text(accessory.name ?? "Your k-chain")
                             .font(.title.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                         Text(accessory.status).foregroundStyle(Design.muted)
@@ -108,6 +109,9 @@ struct WiFiSetupView: View {
                         }
                     } else {
                         Section {
+                            KChainDeviceView(face: accessory.mode == .setup ? accessory.face : .wifi)
+                                .frame(maxWidth: 160, maxHeight: 186)
+                                .frame(maxWidth: .infinity)
                             Text(
                                 "Open Wi-Fi setup on your k-chain. Keep this app open until the board confirms its connection."
                             )
