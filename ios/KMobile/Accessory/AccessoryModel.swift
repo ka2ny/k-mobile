@@ -410,7 +410,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
                 peripheral.writeValue(data, for: rx, type: .withoutResponse)
                 return true
             }, verified: { [weak self] in
-                guard let self else { return }
+                guard let self, !self.pairing.verified else { return }
                 self.pairing.receivedProtectedOpen()
                 self.timeout?.cancel()
                 self.status = "Bluetooth verified. Waiting for a relay connection…"

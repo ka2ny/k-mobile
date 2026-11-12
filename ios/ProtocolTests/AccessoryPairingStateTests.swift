@@ -20,8 +20,10 @@ struct AccessoryPairingStateTests {
         state.transportReset()
         state.connect()
         state.subscribed()
-        #expect(state.pickerDismissed())
-        #expect(!state.pickerDismissed())
+        let selectedDismissal = state.pickerDismissed()
+        #expect(selectedDismissal)
+        let cancelledDismissal = state.pickerDismissed()
+        #expect(!cancelledDismissal)
         #expect(!state.verified)
     }
 
@@ -42,11 +44,13 @@ struct AccessoryPairingStateTests {
     @Test func cancelledDiscoveryCannotPresentCompletion() {
         var state = AccessoryPairingState()
         state.discover()
-        #expect(!state.pickerDismissed())
+        let emptyDismissal = state.pickerDismissed()
+        #expect(!emptyDismissal)
         #expect(state.phase == .idle)
         state.selected(inSystemPicker: true)
         state.cancel()
-        #expect(!state.pickerDismissed())
+        let cancelledDismissal = state.pickerDismissed()
+        #expect(!cancelledDismissal)
         #expect(!state.verified)
     }
 }

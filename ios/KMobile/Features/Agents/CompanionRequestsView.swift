@@ -8,7 +8,10 @@ struct CompanionRequestsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Design.gap) {
                 PageHeading(title: "Agents", detail: "Requests from your computer’s companion.")
-                agentCard
+                if model.online { agentCard }
+                else {
+                    QuietEmptyState(title: "Computer unavailable", detail: "Keep your computer awake or choose another connection from the toolbar.", icon: .computer)
+                }
                 Text("Add a Computer connection for conversations, changes and new sessions.")
                     .foregroundStyle(Design.muted)
             }.quietPage()

@@ -221,7 +221,7 @@ struct AssistantView: View {
             if let why = c["why"]?.string, !why.isEmpty {
                 Text(why).font(.callout).foregroundStyle(Design.muted)
             }
-            Text("Allow is pressed on your computer, never from the phone.")
+            Text("Approve in the desktop Assistant window. Remote lets you reach that window from here.")
                 .font(.footnote).foregroundStyle(Design.muted)
             HStack {
                 Button("Don't", systemImage: "hand.raised", role: .destructive) { Task { await a.deny(id) } }
@@ -234,6 +234,11 @@ struct AssistantView: View {
                 .disabled(a.busy.contains(.confirm(id)))
             }
             if let note = a.notes[.confirm(id)] { NoteLine(note: note) }
+            if a.notes[.confirm(id)]?.fail == false {
+                NavigationLink { RemoteStreamView() } label: {
+                    MobileLabel("Open Remote", icon: .remote)
+                }.buttonStyle(QuietSecondaryStyle())
+            }
         }.quietCard()
     }
 
@@ -277,6 +282,11 @@ struct AssistantView: View {
             .buttonStyle(QuietProminentStyle())
             .disabled(a.busy.contains(.show))
             if let note = a.notes[.show] { NoteLine(note: note) }
+            if a.notes[.show]?.fail == false {
+                NavigationLink { RemoteStreamView() } label: {
+                    MobileLabel("Open Remote", icon: .remote)
+                }.buttonStyle(QuietSecondaryStyle())
+            }
         }.quietCard()
     }
 

@@ -8,7 +8,7 @@ struct BeamView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.mobileAccent) private var accent
     @State private var beam: BeamModel?
-    @State private var words = ""
+    @Binding var words: String
     @State private var toFolder = false
     @State private var picking = false
     @State private var photos: [PhotosPickerItem] = []

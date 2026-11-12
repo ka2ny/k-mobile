@@ -8,6 +8,7 @@ struct AppShell: View {
     @State private var showConnections = false
     @State private var showSettings = false
     @State private var selectedTab = Destination.computer
+    @State private var beamDrafts: [UUID: String] = [:]
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -19,7 +20,9 @@ struct AppShell: View {
             }
             Tab("Beam", image: MobileGlyph.beam.asset, value: .beam) {
                 NavigationStack {
-                    WorkspaceFeatureView(feature: .beam, showConnections: $showConnections) { BeamView() }
+                    WorkspaceFeatureView(feature: .beam, showConnections: $showConnections) {
+                        BeamView(words: beamDraft(for: model.selectedID))
+                    }
                         .toolbar { connectionToolbar }
                 }
             }
@@ -81,9 +84,10 @@ struct AppShell: View {
             Button {
                 showConnections = true
             } label: {
-                MobileLabel("Connections", icon: .computer)
+                MobileLabel(model.selected?.name ?? "Connect", icon: .computer).lineLimit(1)
             }
-            .labelStyle(.iconOnly).accessibilityLabel("Connections")
+            .labelStyle(.titleAndIcon).accessibilityLabel("Connections")
+            .accessibilityValue(model.selected?.name ?? "No computer selected")
             .disabled(model.interacting)
         }
         ToolbarItem(placement: .topBarTrailing) {
@@ -94,5 +98,12 @@ struct AppShell: View {
             }
             .labelStyle(.iconOnly).accessibilityLabel("Settings")
         }
+    }
+
+    /// Bind to a captured computer ID, including late acknowledgements from its old view.
+    private func beamDraft(for id: UUID?) -> Binding<String> {
+        Binding(get: { id.flatMap { beamDrafts[$0] } ?? "" }, set: { value in
+            if let id { beamDrafts[id] = value }
+        })
     }
 }

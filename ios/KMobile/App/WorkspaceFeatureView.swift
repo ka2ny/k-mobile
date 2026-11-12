@@ -20,6 +20,7 @@ struct WorkspaceFeatureView<Content: View>: View {
     @Binding var showConnections: Bool
     @ViewBuilder var content: () -> Content
     @Environment(AppModel.self) private var model
+    @State private var admittedGeneration: UUID?
 
     private var unavailable: String? {
         if model.selected == nil { return "Connect a computer to get started." }
@@ -38,7 +39,7 @@ struct WorkspaceFeatureView<Content: View>: View {
 
     var body: some View {
         Group {
-            if let unavailable {
+            if let unavailable, admittedGeneration != model.connectionGeneration {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Design.inset) {
                         PageHeading(title: feature.rawValue, detail: feature.purpose)
@@ -63,5 +64,8 @@ struct WorkspaceFeatureView<Content: View>: View {
         .background(Design.background)
         .navigationTitle(feature.rawValue)
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: unavailable, initial: true) { _, reason in
+            if reason == nil { admittedGeneration = model.connectionGeneration }
+        }
     }
 }
