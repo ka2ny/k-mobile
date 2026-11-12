@@ -9,41 +9,35 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Design.inset) {
                 PageHeading(
-                    title: "Your computer", detail: "Controls, files and agents from this phone.",
+                    title: "Your computer", detail: "Open your desktop. Control what’s playing. Stay focused.",
                     eyebrow: "K-HOLE / MOBILE")
 
                 connectionCard
 
-                if model.selected != nil {
-                    if model.online && model.device?.control != "full" {
-                        permissionCard
+                if model.online && model.device?.control != "full" { permissionCard }
+                NavigationLink {
+                    WorkspaceFeatureView(feature: .remote, showConnections: $showConnections) { RemoteStreamView() }
+                } label: {
+                    serviceRow("Open Remote", detail: "Your desktop, with touch and sound", icon: .remote,
+                               ready: model.hub?.remote, trailing: "arrow.up.right")
+                }.buttonStyle(.plain)
+                if model.selected != nil { ComputerControlsView() }
+                HStack(spacing: Design.gap) {
+                    NavigationLink { ActivityView() } label: {
+                        MobileLabel("Recent activity", icon: .activity)
                     }
-                    if model.selected?.kind == .computer {
-                        computerServices
-                    } else {
-                        MobileLabel("Companion connection", icon: .controls)
-                            .font(.headline)
-                        Text(
-                            "Media, focus and agent decisions travel through your computer’s k-chain service. Add a Computer connection for Assistant and the mobile workspace."
-                        )
-                        .foregroundStyle(Design.muted)
+                    Spacer(minLength: 8)
+                    NavigationLink { YourComputersView() } label: {
+                        MobileLabel("Computers", icon: .computer)
                     }
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        MobileLabel("Have a k-chain?", icon: .accessory).font(.headline)
-                        Text(
-                            "Pair your board in the k-chain tab. Its Bluetooth connection is separate from your computer connection."
-                        )
-                        .font(.callout).foregroundStyle(Design.muted)
-                    }.padding(.horizontal, 4)
+                }.font(.callout).padding(.vertical, 8)
 
-                }
             }.quietPage().quietEntrance()
         }
         .background(Design.background)
-        .navigationTitle("k-hole")
+        .navigationTitle("Computer")
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await model.refresh(includeCompanion: false) }
+        .refreshable { await model.refresh(includeCompanion: true) }
     }
 
     private var connectionCard: some View {
@@ -112,64 +106,6 @@ struct HomeView: View {
                     .font(.callout)
             }
         }.quietCard()
-    }
-
-    private var computerServices: some View {
-        VStack(alignment: .leading, spacing: Design.gap) {
-            Text("Workspace").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
-            Text("Remote, Beam and Agents all run here in the app.")
-                .font(.callout).foregroundStyle(Design.muted)
-            if let error = model.computerError { Text(error).font(.callout).foregroundStyle(Design.muted) }
-            if model.hub?.stopped == true {
-                Label("Remote services are paused on your computer.", systemImage: "pause.circle")
-            }
-            if model.selected != nil {
-                NavigationLink {
-                    RemoteStreamView()
-                } label: {
-                    serviceRow(
-                        "Remote", detail: "View and control your desktop", icon: .remote,
-                        ready: model.hub?.remote, trailing: "chevron.right")
-                }
-                .buttonStyle(.plain)
-                .disabled(!serviceAvailable(model.hub?.remote))
-                .opacity(serviceAvailable(model.hub?.remote) ? 1 : 0.6)
-                NavigationLink {
-                    BeamView()
-                } label: {
-                    serviceRow(
-                        "Beam & Files", detail: "Send files and browse shared folders", icon: .beam,
-                        ready: model.hub?.beam, trailing: "chevron.right")
-                }
-                .buttonStyle(.plain)
-                .disabled(!serviceAvailable(model.hub?.beam))
-                .opacity(serviceAvailable(model.hub?.beam) ? 1 : 0.6)
-                NavigationLink {
-                    AgentsView()
-                } label: {
-                    serviceRow(
-                        "Agents", detail: "Review and steer coding sessions", icon: .agents,
-                        ready: model.hub?.agents, trailing: "chevron.right")
-                }
-                .buttonStyle(.plain)
-                .disabled(!serviceAvailable(model.hub?.agents))
-                .opacity(serviceAvailable(model.hub?.agents) ? 1 : 0.6)
-                NavigationLink {
-                    YourComputersView()
-                } label: {
-                    serviceRow(
-                        "Your computers", detail: "Open another k-hole computer with this pairing", icon: .computer,
-                        ready: model.online ? true : nil, trailing: "chevron.right")
-                }
-                .buttonStyle(.plain)
-                .disabled(!model.online)
-                .opacity(model.online ? 1 : 0.6)
-            }
-        }
-    }
-
-    private func serviceAvailable(_ ready: Bool?) -> Bool {
-        model.online && ready == true && model.hub?.stopped != true
     }
 
     private func serviceRow(

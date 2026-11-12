@@ -6,6 +6,7 @@ import SwiftUI
 struct AgentsView: View {
     @Environment(AppModel.self) private var model
     @State private var agents: AgentsModel?
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showNew = false
     @State private var showReplies = false
 
@@ -20,7 +21,8 @@ struct AgentsView: View {
         .background(Design.background)
         .navigationTitle("Agents")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: model.connectionGeneration) {
+        .task(id: "\(model.connectionGeneration)-\(scenePhase)") {
+            guard scenePhase == .active else { agents?.stop(); return }
             let current = agents ?? AgentsModel(app: model)
             agents = current
             current.start()
@@ -44,14 +46,14 @@ private struct AgentsQueue: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Design.inset) {
+            LazyVStack(alignment: .leading, spacing: Design.inset) {
                 PageHeading(title: "Agents", detail: agents.loaded ? agents.summary : "Reading your sessions…",
                             eyebrow: agents.hostName.uppercased())
                 header
                 if agents.unpaired {
                     QuietEmptyState(
                         title: "Agents waits for full control",
-                        detail: "Ask for full control on Home, then approve it on your computer. This page updates by itself.",
+                        detail: "Ask for full control on Computer, then approve it on your computer. This page updates by itself.",
                         icon: .agents)
                 } else if let error = agents.listError, agents.rows.isEmpty {
                     QuietEmptyState(title: "Can't read your agents", detail: error, icon: .agents)

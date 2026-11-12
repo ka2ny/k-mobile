@@ -25,12 +25,13 @@ final class PhoneRelay {
     private let maximumPayload: Int
     private let send: (Data) -> Bool
     private let changed: (Int) -> Void
+    private let verified: () -> Void
     private let failed: (String) -> Void
 
-    init(maximumWrite: Int, send: @escaping (Data) -> Bool, changed: @escaping (Int) -> Void,
+    init(maximumWrite: Int, send: @escaping (Data) -> Bool, verified: @escaping () -> Void, changed: @escaping (Int) -> Void,
          failed: @escaping (String) -> Void) {
         maximumPayload = min(maximumWrite - 2, 250)
-        self.send = send; self.changed = changed; self.failed = failed
+        self.send = send; self.verified = verified; self.changed = changed; self.failed = failed
     }
     func receive(_ bytes: Data) {
         do {
@@ -40,6 +41,7 @@ final class PhoneRelay {
                 guard streams[frame.stream] == nil else { close(frame.stream); return }
                 guard streams.count < 6 else { enqueue(.init(kind: .opened, stream: frame.stream, payload: Data([1]))); return }
                 let targets = try RelayTarget.parse(frame.payload)
+                verified()
                 let stream = Stream(id: frame.stream, targets: targets)
                 streams[frame.stream] = stream
                 dial(stream)

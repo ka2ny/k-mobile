@@ -4,6 +4,8 @@ struct AccessoryView: View {
     @Environment(AccessoryModel.self) private var accessory
     @State private var showSetup = false
     @State private var confirmForget = false
+    @State private var showIntroduction = false
+    @State private var discoverAfterDismissal = false
 
     var body: some View {
         @Bindable var accessory = accessory
@@ -17,6 +19,9 @@ struct AccessoryView: View {
                         Text(accessory.name ?? "Your k-chain")
                             .font(.title.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                         Text(accessory.status).foregroundStyle(Design.muted)
+                        if let firmware = accessory.firmwareVersion {
+                            Text("Firmware \(firmware)").font(.footnote).foregroundStyle(Design.muted)
+                        }
                         if accessory.streams > 0 {
                             Label(
                                 accessory.streams == 1
@@ -30,12 +35,12 @@ struct AccessoryView: View {
                         accessory.savedRelay ? "Reconnect k-chain" : "Pair your k-chain",
                         systemImage: "antenna.radiowaves.left.and.right"
                     ) {
-                        if accessory.savedRelay { accessory.useSaved(.relay) } else { accessory.choose(.relay) }
+                        if accessory.savedRelay { accessory.useSaved(.relay) } else { showIntroduction = true }
                     }.disabled(accessory.working)
                     // The result of pairing sits under the button that started it.
                     if let error = accessory.error { PairingNote(text: error) }
                     if accessory.savedRelay {
-                        Button("Choose another k-chain", systemImage: "plus") { accessory.choose(.relay) }.disabled(
+                        Button("Choose another k-chain", systemImage: "plus") { showIntroduction = true }.disabled(
                             accessory.working)
                         Button("Disconnect", systemImage: "pause.circle") { accessory.disconnect() }
                     }
@@ -80,6 +85,16 @@ struct AccessoryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showSetup) { WiFiSetupView() }
         .sheet(isPresented: $accessory.pairSheet) { KChainPairSheet() }
+        .sheet(isPresented: $showIntroduction, onDismiss: {
+            guard discoverAfterDismissal else { return }
+            discoverAfterDismissal = false
+            accessory.choose(.relay)
+        }) {
+            KChainSetupIntroduction {
+                discoverAfterDismissal = true
+                showIntroduction = false
+            }
+        }
         .confirmationDialog("Forget this Bluetooth accessory?", isPresented: $confirmForget, titleVisibility: .visible)
         {
             Button("Forget accessory", role: .destructive) { accessory.forget() }

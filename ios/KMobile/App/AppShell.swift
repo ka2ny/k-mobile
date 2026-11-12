@@ -1,42 +1,47 @@
 import SwiftUI
 
 struct AppShell: View {
-    private enum Destination: Hashable { case home, accessory, companion, assistant, activity }
+    private enum Destination: Hashable { case computer, beam, agents, assistant, accessory }
     @Environment(AppModel.self) private var model
     @Environment(AccessoryModel.self) private var accessory
     @Environment(\.scenePhase) private var scenePhase
     @State private var showConnections = false
     @State private var showSettings = false
-    @State private var selectedTab = Destination.home
+    @State private var selectedTab = Destination.computer
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Home", image: MobileGlyph.home.asset, value: .home) {
+            Tab("Computer", image: MobileGlyph.computer.asset, value: .computer) {
                 NavigationStack {
                     HomeView(showConnections: $showConnections)
                         .toolbar { connectionToolbar }
                 }
             }
-            Tab("k-chain", image: MobileGlyph.accessory.asset, value: .accessory) {
-                NavigationStack { AccessoryView().toolbar { connectionToolbar } }
-            }
-            Tab("Controls", image: MobileGlyph.controls.asset, value: .companion) {
+            Tab("Beam", image: MobileGlyph.beam.asset, value: .beam) {
                 NavigationStack {
-                    CompanionView()
+                    WorkspaceFeatureView(feature: .beam, showConnections: $showConnections) { BeamView() }
                         .toolbar { connectionToolbar }
+                }
+            }
+            Tab("Agents", image: MobileGlyph.agents.asset, value: .agents) {
+                NavigationStack {
+                    if model.selected?.kind == .companion {
+                        CompanionRequestsView().toolbar { connectionToolbar }
+                    } else {
+                        WorkspaceFeatureView(feature: .agents, showConnections: $showConnections) { AgentsView() }
+                            .toolbar { connectionToolbar }
+                    }
                 }
             }
             Tab("Assistant", image: MobileGlyph.assistant.asset, value: .assistant) {
                 NavigationStack {
-                    AssistantView(isActive: selectedTab == .assistant)
-                        .toolbar { connectionToolbar }
+                    WorkspaceFeatureView(feature: .assistant, showConnections: $showConnections) {
+                        AssistantView(isActive: selectedTab == .assistant)
+                    }.toolbar { connectionToolbar }
                 }
             }
-            Tab("Activity", image: MobileGlyph.activity.asset, value: .activity) {
-                NavigationStack {
-                    ActivityView()
-                        .toolbar { connectionToolbar }
-                }
+            Tab("k-chain", image: MobileGlyph.accessory.asset, value: .accessory) {
+                NavigationStack { AccessoryView().toolbar { connectionToolbar } }
             }
         }
         .onChange(of: scenePhase) { _, phase in if phase == .background { accessory.backgrounded() } }
@@ -58,8 +63,8 @@ struct AppShell: View {
             switch scenePhase {
             case .active:
                 await model.monitor(
-                    includeCompanion: selectedTab == .companion,
-                    interactive: selectedTab == .home || selectedTab == .companion || selectedTab == .assistant)
+                    includeCompanion: selectedTab == .computer || (selectedTab == .agents && model.selected?.kind == .companion),
+                    interactive: selectedTab != .accessory)
             case .background:
                 model.suspend()
             default:

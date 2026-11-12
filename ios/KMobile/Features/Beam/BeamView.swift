@@ -13,12 +13,23 @@ struct BeamView: View {
     @State private var picking = false
     @State private var photos: [PhotosPickerItem] = []
     @State private var pickNote: String?
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var section = Section.send
+    @State private var fileQuery = ""
+    @State private var newestFirst = true
+    private enum Section: String, CaseIterable, Identifiable {
+        case send = "Send", inbox = "Inbox", files = "Files", clipboard = "Clipboard"
+        var id: Self { self }
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Design.gap) {
+            LazyVStack(alignment: .leading, spacing: Design.gap) {
                 PageHeading(
-                    title: "k-beam", detail: "Send words and files to your computer, and take what it sends you.")
+                    title: "Beam", detail: "Move something between your phone and computer.")
+                Picker("Beam workspace", selection: $section) {
+                    ForEach(Section.allCases) { section in Text(section.rawValue).tag(section) }
+                }.pickerStyle(.segmented)
                 if let beam {
                     content(beam)
                 } else {
@@ -28,17 +39,20 @@ struct BeamView: View {
             .quietPage().quietEntrance()
         }
         .background(Design.background)
-        .navigationTitle("k-beam")
+        .navigationTitle("Beam")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await beam?.refresh() }
-        .task(id: model.connectionGeneration) {
-            let current = beam ?? BeamModel(app: model)
+        .task(id: "\(model.connectionGeneration)-\(scenePhase)") {
+            beam?.stop()
+            guard scenePhase == .active else { return }
+            let current = BeamModel(app: model)
             beam = current
             while !Task.isCancelled {
                 await current.refresh()
-                try? await Task.sleep(for: .seconds(5))
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
             }
         }
+        .onDisappear { beam?.stop() }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             switch result {
             case .success(let urls): sendFiles(urls)
@@ -55,10 +69,16 @@ struct BeamView: View {
         if let error = beam.meError {
             QuietEmptyState(title: "k-beam isn't reachable", detail: error, icon: .beam)
         }
-        sendCard(beam)
-        inboxCard(beam)
-        if beam.folderOn { folderCard(beam) }
-        clipboardCard(beam)
+        switch section {
+        case .send: sendCard(beam)
+        case .inbox: inboxCard(beam)
+        case .files:
+            if beam.folderOn { folderCard(beam) }
+            else {
+                QuietEmptyState(title: "Your shared folder", detail: "Enable the shared folder in Settings → k-beam on your computer. Files placed there will appear here.", icon: .files)
+            }
+        case .clipboard: clipboardCard(beam)
+        }
     }
 
     // MARK: Send
@@ -73,8 +93,10 @@ struct BeamView: View {
                 .disabled(beam.sending)
             HStack(spacing: 12) {
                 Button("Send text") {
-                    beam.send(text: words)
-                    words = ""
+                    let submitted = words
+                    beam.send(text: submitted) {
+                        if words == submitted { words = "" }
+                    }
                 }
                 .buttonStyle(QuietProminentStyle())
                 .disabled(beam.sending || words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -195,14 +217,23 @@ struct BeamView: View {
     // MARK: Folder
 
     private func folderCard(_ beam: BeamModel) -> some View {
-        VStack(alignment: .leading, spacing: Design.gap) {
+        let files = beam.folder.filter { fileQuery.isEmpty || $0.name.localizedStandardContains(fileQuery) }
+            .sorted { newestFirst ? ($0.at == $1.at ? $0.name < $1.name : $0.at > $1.at)
+                                 : $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        return LazyVStack(alignment: .leading, spacing: Design.gap) {
             Text("Shared folder “\(beam.folderName)”").font(.headline).accessibilityAddTraits(.isHeader)
+            TextField("Search files", text: $fileQuery).textFieldStyle(.roundedBorder)
+            Picker("Sort files", selection: $newestFirst) {
+                Text("Newest first").tag(true)
+                Text("Name").tag(false)
+            }.pickerStyle(.menu)
+            if !beam.folder.isEmpty && files.isEmpty { Text("No files match your search.").foregroundStyle(Design.muted) }
             if let error = beam.folderError { note(error, failed: true) }
             if beam.folder.isEmpty && beam.folderError == nil {
                 Text("Empty. Files you put in it on the computer show here.")
                     .font(.callout).foregroundStyle(Design.muted)
             }
-            ForEach(beam.folder) { file in
+            ForEach(files) { file in
                 let key = "folder:" + file.name
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 12) {

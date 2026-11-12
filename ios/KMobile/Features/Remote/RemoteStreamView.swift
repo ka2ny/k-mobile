@@ -22,14 +22,24 @@ final class RemoteStreamModel {
     private var lastFrames = 0
     private var lastBytes = 0
     private var restarts = 0
+    private var attempt = UUID()
+    private var restartTask: Task<Void, Never>?
+    private let suppliedGateway: GatewayClient?
+    private var firstFrameDeadline = Date.distantFuture
+
+    init(gateway: GatewayClient? = nil) { suppliedGateway = gateway }
+
 
     func connect(_ app: AppModel, screen: CGSize, scale: CGFloat) async {
         guard phase != .starting else { return }
-        guard let gateway = app.gateway, let host = app.selected?.origin.host(), let token = gateway.deviceToken else {
+        guard let gateway = suppliedGateway ?? app.gateway, let host = gateway.profile.origin.host(), let token = gateway.deviceToken else {
             note = "The computer isn't reachable right now. Check that it's on and on your tailnet."
             phase = .ended
             return
         }
+        let current = UUID()
+        attempt = current
+        let generation = app.connectionGeneration
         phase = .starting
         note = "Asking the computer for its screen…"
         let request = StreamWire.Request(
@@ -39,10 +49,12 @@ final class RemoteStreamModel {
         do {
             offer = try await gateway.send("/api/native/stream", json: request, as: StreamWire.Offer.self)
         } catch {
+            guard attempt == current, !Task.isCancelled, generation == app.connectionGeneration else { return }
             note = StreamWords.setup(error)
             phase = .ended
             return
         }
+        guard attempt == current, !Task.isCancelled, generation == app.connectionGeneration else { return }
         guard let key = offer.keyBytes, let salt = offer.saltBytes else {
             note = "The computer sent a stream key the phone can't read. Update k-hole on the computer."
             phase = .ended
@@ -54,6 +66,8 @@ final class RemoteStreamModel {
 
     private func start(offer: StreamWire.Offer, host: String, token: String, key: Data, salt: [UInt8], pin: String?,
                        app: AppModel, screen: CGSize, scale: CGFloat) {
+        let current = attempt
+        let generation = app.connectionGeneration
         let video = StreamVideo(codec: offer.codec)
         let audio = StreamAudio()
         let control = StreamControl(host: host, port: offer.port, pinnedDigest: pin)
@@ -64,12 +78,17 @@ final class RemoteStreamModel {
         receiver.onFrame = { [weak video] data, keyframe, pts in video?.enqueue(data, keyframe: keyframe, pts: pts) }
         receiver.onAudio = { [weak audio] packet, _ in audio?.enqueue(packet) }
         receiver.onLoss = { [weak control] frame in control?.send(["t": "loss", "frame": Int(frame)]) }
-        receiver.onFailure = { [weak self] why in Task { @MainActor in self?.end(why) } }
-        control.onEnd = { [weak self] why in Task { @MainActor in self?.end(why.isEmpty ? nil : why) } }
+        receiver.onFailure = { [weak self] why in
+            Task { @MainActor in guard let self, self.attempt == current else { return }; self.end(why) }
+        }
+        control.onEnd = { [weak self] why in
+            Task { @MainActor in guard let self, self.attempt == current else { return }; self.end(why.isEmpty ? nil : why) }
+        }
         control.onMessage = { [weak self] data in
             Task { @MainActor in
+                guard let self, self.attempt == current, app.connectionGeneration == generation else { return }
                 guard let message = (try? JSONSerialization.jsonObject(with: data)) as? StreamControl.Message else { return }
-                self?.handle(message, app: app, screen: screen, scale: scale)
+                self.handle(message, app: app, screen: screen, scale: scale)
             }
         }
 
@@ -80,8 +99,10 @@ final class RemoteStreamModel {
         control.start(session: offer.session, token: token)
         receiver.start()
         audio.start()
-        phase = .live
-        note = nil
+        // Media may arrive after the TLS control channel; show an honest waiting state until then.
+        phase = .starting
+        note = "Waiting for the first frame…"
+        firstFrameDeadline = .now.addingTimeInterval(20)
         if let why = offer.why, !why.isEmpty { note = why }
         startStats()
     }
@@ -102,8 +123,15 @@ final class RemoteStreamModel {
         case "restart":
             restarts += 1
             guard restarts <= 3 else { end("The computer kept restarting the stream. Press Connect to try again."); return }
+            let generation = app.connectionGeneration
+            attempt = UUID()
             teardown(bye: false)
-            Task { await connect(app, screen: screen, scale: scale) }
+            phase = .idle
+            restartTask?.cancel()
+            restartTask = Task { [weak self] in
+                guard !Task.isCancelled, app.connectionGeneration == generation else { return }
+                await self?.connect(app, screen: screen, scale: scale)
+            }
         case "bye":
             let why = message["why"] as? String ?? message["reason"] as? String
             end(why == "taken_back"
@@ -117,9 +145,14 @@ final class RemoteStreamModel {
         statsTask?.cancel()
         statsTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
                 guard let self, let receiver = self.receiver, let control = self.control else { return }
                 let c = receiver.counters
+                if self.phase == .starting, c.frames == 0, Date.now > self.firstFrameDeadline {
+                    self.end("No video arrived. Check the computer’s Remote service and network, then reconnect.")
+                    return
+                }
+                if self.phase == .starting, c.frames > 0 { self.phase = .live; self.note = nil }
                 let fps = c.frames - self.lastFrames
                 let kbps = (c.bytes - self.lastBytes) * 8 / 1000
                 self.lastFrames = c.frames
@@ -132,10 +165,14 @@ final class RemoteStreamModel {
         }
     }
 
-    func disconnect() { end(nil) }
+    func disconnect() {
+        restarts = 0
+        end(nil)
+    }
 
     private func end(_ why: String?) {
-        guard phase != .ended || why != nil else { return }
+        attempt = UUID()
+        restartTask?.cancel(); restartTask = nil
         teardown(bye: true)
         phase = .ended
         if let why { note = why }
@@ -152,6 +189,7 @@ final class RemoteStreamModel {
         audio = nil
         video = nil
         held = false
+        lastFrames = 0; lastBytes = 0; stats = ""
     }
 
     // MARK: Input (normalised 0…1 in the stream's picture)
@@ -168,6 +206,8 @@ struct RemoteStreamView: View {
     @Environment(AppModel.self) private var app
     @State private var stream = RemoteStreamModel()
     @State private var typing = ""
+    @State private var connectTask: Task<Void, Never>?
+    @Environment(\.scenePhase) private var scenePhase
     @FocusState private var keyboard: Bool
 
     var body: some View {
@@ -186,7 +226,9 @@ struct RemoteStreamView: View {
         .navigationTitle("Remote")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(stream.phase == .live ? .hidden : .visible, for: .tabBar)
-        .onDisappear { stream.disconnect() }
+        .onDisappear { disconnect() }
+        .onChange(of: app.connectionGeneration) { _, _ in disconnect() }
+        .onChange(of: scenePhase) { _, phase in if phase == .background { disconnect() } }
     }
 
     private func connectCard(_ size: CGSize) -> some View {
@@ -196,10 +238,14 @@ struct RemoteStreamView: View {
             Text("Streamed straight to this phone, with its sound. Touch works like on the computer's screen.")
                 .font(.callout).foregroundStyle(Design.muted)
             Button(stream.phase == .starting ? "Connecting…" : "Connect", systemImage: "play.fill") {
-                Task { await stream.connect(app, screen: size, scale: UIScreen.main.scale) }
+                connectTask?.cancel()
+                connectTask = Task { await stream.connect(app, screen: size, scale: UIScreen.main.scale) }
             }
             .buttonStyle(QuietProminentStyle())
             .disabled(stream.phase == .starting || app.gateway == nil)
+            if stream.phase == .starting {
+                Button("Cancel connection", role: .cancel) { disconnect() }.buttonStyle(QuietSecondaryStyle())
+            }
             if let note = stream.note {
                 Label(note, systemImage: stream.phase == .starting ? "hourglass" : "info.circle")
                     .font(.callout).foregroundStyle(Design.muted)
@@ -210,6 +256,12 @@ struct RemoteStreamView: View {
         .padding(Design.inset)
     }
 
+    private func disconnect() {
+        connectTask?.cancel(); connectTask = nil
+        stream.disconnect()
+        keyboard = false
+    }
+
     private var overlay: some View {
         VStack {
             HStack(spacing: Design.gap) {
@@ -217,7 +269,7 @@ struct RemoteStreamView: View {
                 Spacer()
                 Button("Keyboard", systemImage: "keyboard") { keyboard.toggle() }
                     .labelStyle(.iconOnly)
-                Button("Disconnect", systemImage: "xmark") { stream.disconnect() }
+                Button("Disconnect", systemImage: "xmark") { disconnect() }
                     .labelStyle(.iconOnly)
             }
             .padding(10)

@@ -1,54 +1,21 @@
 import SwiftUI
 
-struct CompanionView: View {
+/// Computer owns media, focus and lock. Agent decisions live in the Agents tab.
+struct ComputerControlsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var confirmLock = false
-    @State private var decision: GatewayModels.Companion.Decision?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Design.inset) {
-                PageHeading(title: "Computer controls", detail: "Media, focus and agent requests.")
-                if !model.online && model.selected != nil && model.refreshing && model.connectionError == nil {
-                    ProgressView("Connecting to your computer…").frame(maxWidth: .infinity).padding(Design.inset)
-                } else if !model.online {
-                    QuietEmptyState(
-                        title: "Your companion is out of reach",
-                        detail: "Select a connection and keep your computer awake.", icon: .controls)
-                } else {
-                    if let error = model.companionError {
-                        Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Design.muted)
-                    }
-                    if model.device?.control != "full" {
-                        Label("Full control needs approval on your computer.", systemImage: "hand.raised")
-                            .foregroundStyle(Design.muted)
-                        if model.selected?.kind == .computer {
-                            Button("Ask for full control") { Task { await model.requestControl() } }
-                                .buttonStyle(QuietSecondaryStyle()).disabled(model.interacting)
-                        }
-                    }
-                    if model.hub?.stopped == true {
-                        Label("Controls paused on your computer", systemImage: "pause.circle")
-                    }
-                    controls
-                    agentCard
-                    if let answer = model.companion?.answer, !answer.isEmpty {
-                        VStack(alignment: .leading, spacing: Design.gap) {
-                            Label("From your companion", systemImage: "quote.bubble").font(.headline)
-                            Text(answer).textSelection(.enabled)
-                        }.quietCard()
-                    }
-                }
-            }.quietPage().quietEntrance()
-                .quietStateAnimation(value: model.lastReceipt)
-                .quietStateAnimation(value: model.busy)
+        VStack(alignment: .leading, spacing: Design.gap) {
+            if let error = model.companionError {
+                Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Design.muted)
+            }
+            if model.hub?.stopped == true {
+                Label("Controls paused on your computer", systemImage: "pause.circle")
+            }
+            controls
         }
-        .background(Design.background)
-        .navigationTitle("Controls")
-        .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await model.refresh() }
-        .sheet(item: $decision) { DecisionView(decision: $0) }
     }
 
     private var controls: some View {
@@ -109,26 +76,4 @@ struct CompanionView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var agentCard: some View {
-        VStack(alignment: .leading, spacing: Design.gap) {
-            MobileLabel("Agent requests", icon: .agents).font(.headline)
-            if let agents = model.companion?.agents {
-                Text("\(agents.working) working · \(agents.needs) waiting")
-                    .font(.subheadline).foregroundStyle(Design.muted)
-                if let top = agents.top {
-                    Text(top.name).font(.title3).bold()
-                    Text(top.summary ?? "Review the request on your computer.")
-                    Button("Review request", systemImage: "arrow.up.right") { decision = top }
-                        .buttonStyle(QuietProminentStyle()).disabled(!model.controlAllowed)
-                } else {
-                    Text("Nothing needs a decision right now.").foregroundStyle(Design.muted)
-                }
-            } else if model.companion == nil && model.companionError == nil {
-                Text("Checking for agent requests…").foregroundStyle(Design.muted)
-            } else {
-                Text("Agent status is unavailable. Enable the Agents connector on your computer.")
-                    .foregroundStyle(Design.muted)
-            }
-        }.quietCard()
-    }
 }
