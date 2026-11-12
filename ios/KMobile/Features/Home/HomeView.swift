@@ -117,16 +117,23 @@ struct HomeView: View {
     private var computerServices: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
             Text("Workspace").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
-            Text("Beam and Agents run here in the app. Remote still opens in your browser for now.")
+            Text("Remote, Beam and Agents all run here in the app.")
                 .font(.callout).foregroundStyle(Design.muted)
             if let error = model.computerError { Text(error).font(.callout).foregroundStyle(Design.muted) }
             if model.hub?.stopped == true {
                 Label("Remote services are paused on your computer.", systemImage: "pause.circle")
             }
             if let profile = model.selected {
-                service(
-                    "Remote", detail: "View and control your desktop", icon: .remote, path: "remote/",
-                    ready: model.hub?.remote, profile: profile)
+                NavigationLink {
+                    RemoteStreamView()
+                } label: {
+                    serviceRow(
+                        "Remote", detail: "View and control your desktop", icon: .remote,
+                        ready: model.hub?.remote, trailing: "chevron.right")
+                }
+                .buttonStyle(.plain)
+                .disabled(!serviceAvailable(model.hub?.remote))
+                .opacity(serviceAvailable(model.hub?.remote) ? 1 : 0.6)
                 NavigationLink {
                     BeamView()
                 } label: {
@@ -182,18 +189,5 @@ struct HomeView: View {
             Spacer(minLength: 0)
             Image(systemName: trailing).accessibilityHidden(true)
         }.quietCard()
-    }
-
-    private func service(
-        _ title: String, detail: String, icon: MobileGlyph, path: String, ready: Bool?, profile: ConnectionProfile
-    ) -> some View {
-        let available = serviceAvailable(ready)
-        return Link(destination: profile.origin.appending(path: path)) {
-            serviceRow(title, detail: detail, icon: icon, ready: ready, trailing: "arrow.up.right")
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Opens in your browser")
-        .disabled(!available)
-        .opacity(available ? 1 : 0.6)
     }
 }

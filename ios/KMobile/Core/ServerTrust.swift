@@ -13,6 +13,7 @@ final class ServerTrust: NSObject, URLSessionDelegate, URLSessionTaskDelegate, @
     private var rejectedCertificate = false
     var certificateDigest: String? { lock.withLock { observedDigest } }
     var didRejectCertificate: Bool { lock.withLock { rejectedCertificate } }
+    var pinnedDigest: String? { pin }
 
     init(origin: URL, pin: String? = nil, enrollmentCode: String? = nil) {
         self.origin = origin

@@ -9,6 +9,10 @@ final class GatewayClient: Sendable {
     private let transfers: URLSession
     private let trust: ServerTrust
     var certificateDigest: String? { trust.certificateDigest }
+    /// The device token, for the native stream's control channel (its first frame carries it).
+    var deviceToken: String? { token }
+    /// The pinned certificate digest, when this connection pins one (a companion).
+    var pinnedDigest: String? { trust.pinnedDigest }
 
     init(profile: ConnectionProfile, token: String? = nil, pin: String? = nil, enrollmentCode: String? = nil,
          configuration: URLSessionConfiguration = .ephemeral) {
