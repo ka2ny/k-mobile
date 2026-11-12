@@ -117,7 +117,7 @@ struct HomeView: View {
     private var computerServices: some View {
         VStack(alignment: .leading, spacing: Design.gap) {
             Text("Workspace").font(.title2.weight(.medium)).accessibilityAddTraits(.isHeader)
-            Text("Open the existing workspace in your browser. Browser pairing is separate from this app.")
+            Text("Beam runs here in the app. Remote and Agents still open in your browser for now.")
                 .font(.callout).foregroundStyle(Design.muted)
             if let error = model.computerError { Text(error).font(.callout).foregroundStyle(Design.muted) }
             if model.hub?.stopped == true {
@@ -127,9 +127,16 @@ struct HomeView: View {
                 service(
                     "Remote", detail: "View and control your desktop", icon: .remote, path: "remote/",
                     ready: model.hub?.remote, profile: profile)
-                service(
-                    "Beam & Files", detail: "Send files and browse shared folders", icon: .beam, path: "beam/",
-                    ready: model.hub?.beam, profile: profile)
+                NavigationLink {
+                    BeamView()
+                } label: {
+                    serviceRow(
+                        "Beam & Files", detail: "Send files and browse shared folders", icon: .beam,
+                        ready: model.hub?.beam, trailing: "chevron.right")
+                }
+                .buttonStyle(.plain)
+                .disabled(!serviceAvailable(model.hub?.beam))
+                .opacity(serviceAvailable(model.hub?.beam) ? 1 : 0.6)
                 service(
                     "Agents", detail: "Review and steer coding sessions", icon: .agents, path: "agents/",
                     ready: model.hub?.agents, profile: profile)
@@ -137,25 +144,35 @@ struct HomeView: View {
         }
     }
 
+    private func serviceAvailable(_ ready: Bool?) -> Bool {
+        model.online && ready == true && model.hub?.stopped != true
+    }
+
+    private func serviceRow(
+        _ title: String, detail: String, icon: MobileGlyph, ready: Bool?, trailing: String
+    ) -> some View {
+        HStack(spacing: Design.gap) {
+            MobileIcon(icon).foregroundStyle(accent)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.headline)
+                Text(detail).font(.subheadline).foregroundStyle(Design.muted)
+                Text(
+                    ready == nil
+                        ? "Availability unknown" : ready == true ? "Enabled on computer" : "Off on computer"
+                )
+                .font(.footnote).foregroundStyle(Design.muted)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: trailing).accessibilityHidden(true)
+        }.quietCard()
+    }
+
     private func service(
         _ title: String, detail: String, icon: MobileGlyph, path: String, ready: Bool?, profile: ConnectionProfile
     ) -> some View {
-        let available = model.online && ready == true && model.hub?.stopped != true
+        let available = serviceAvailable(ready)
         return Link(destination: profile.origin.appending(path: path)) {
-            HStack(spacing: Design.gap) {
-                MobileIcon(icon).foregroundStyle(accent)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.headline)
-                    Text(detail).font(.subheadline).foregroundStyle(Design.muted)
-                    Text(
-                        ready == nil
-                            ? "Availability unknown" : ready == true ? "Enabled on computer" : "Off on computer"
-                    )
-                    .font(.footnote).foregroundStyle(Design.muted)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "arrow.up.right").accessibilityHidden(true)
-            }.quietCard()
+            serviceRow(title, detail: detail, icon: icon, ready: ready, trailing: "arrow.up.right")
         }
         .buttonStyle(.plain)
         .accessibilityHint("Opens in your browser")

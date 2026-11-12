@@ -387,6 +387,15 @@ final class AppModel {
         } catch { notice = error.localizedDescription }
     }
 
+    /// The live client for native services (k-beam, Agents); nil while no computer is connected.
+    var gateway: GatewayClient? { online ? client : nil }
+    /// The generation a native service's answer belongs to; a changed one means the connection moved.
+    var connectionGeneration: UUID { generation }
+
+    func recordActivity(_ title: String, _ detail: String, failed: Bool = false) {
+        record(title, detail, failed: failed)
+    }
+
     private func record(_ title: String, _ detail: String, failed: Bool = false) {
         activity.insert(ActivityEntry(title: title, detail: detail, failed: failed), at: 0)
         activity = Array(activity.prefix(60))
