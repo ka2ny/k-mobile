@@ -123,7 +123,7 @@ struct HomeView: View {
             if model.hub?.stopped == true {
                 Label("Remote services are paused on your computer.", systemImage: "pause.circle")
             }
-            if let profile = model.selected {
+            if model.selected != nil {
                 NavigationLink {
                     RemoteStreamView()
                 } label: {

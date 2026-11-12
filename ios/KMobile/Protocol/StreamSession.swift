@@ -70,7 +70,8 @@ final class StreamControl: @unchecked Sendable {
     private var pingNumber = 0
     private var sentPings: [Int: Date] = [:]
     private(set) var rtt: Double = 0
-    var onMessage: (@Sendable (Message) -> Void)?
+    // Immutable JSON bytes can cross to the UI actor without transferring [String: Any].
+    var onMessage: (@Sendable (Data) -> Void)?
     var onEnd: (@Sendable (String) -> Void)?
     private var ended = false
 
@@ -154,7 +155,7 @@ final class StreamControl: @unchecked Sendable {
                     self.rtt = Date().timeIntervalSince(sent) * 1000
                     self.sentPings[n] = nil
                 }
-                self.onMessage?(message)
+                self.onMessage?(body)
                 self.receive()
             }
         }

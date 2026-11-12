@@ -283,7 +283,7 @@ final class AssistantModel {
     }
 
     /// The computer's refusals in plain words: 403 Allow/continue, 409 a gone card or a question open there.
-    static func words(_ error: Error) -> String {
+    nonisolated static func words(_ error: Error) -> String {
         switch error {
         case GatewayError.http(409, let message):
             return message.isEmpty ? "That changed on the computer before your tap arrived." : message

@@ -5,7 +5,8 @@ import Foundation
 /// Turns Annex B access units into sample buffers on a display layer (contract v1, section 3, video).
 /// Every keyframe carries its parameter sets inline; the format is rebuilt from them.
 final class StreamVideo: @unchecked Sendable {
-    let layer = AVSampleBufferDisplayLayer()
+    @MainActor let layer: AVSampleBufferDisplayLayer
+    private let renderer: AVSampleBufferVideoRenderer
     private let queue = DispatchQueue(label: "k-mobile.stream.video")
     private var codec: String
     private var format: CMVideoFormatDescription?
@@ -13,9 +14,12 @@ final class StreamVideo: @unchecked Sendable {
     /// Asks the computer for a keyframe (the decoder lost its place).
     var onNeedKeyframe: (@Sendable () -> Void)?
 
-    init(codec: String) {
+    @MainActor init(codec: String) {
         self.codec = codec
+        let layer = AVSampleBufferDisplayLayer()
         layer.videoGravity = .resizeAspect
+        self.layer = layer
+        renderer = layer.sampleBufferRenderer
     }
 
     /// After a `codec` message: drop the format and wait for the next keyframe.
@@ -24,14 +28,14 @@ final class StreamVideo: @unchecked Sendable {
             self.codec = codec
             format = nil
             waitingForKeyframe = true
-            layer.sampleBufferRenderer.flush()
+            renderer.flush()
         }
     }
 
     func enqueue(_ frame: Data, keyframe: Bool, pts: UInt32) {
         queue.async { [self] in
-            if layer.sampleBufferRenderer.status == .failed {
-                layer.sampleBufferRenderer.flush()
+            if renderer.status == .failed {
+                renderer.flush()
                 format = nil
                 waitingForKeyframe = true
                 onNeedKeyframe?()
@@ -41,7 +45,7 @@ final class StreamVideo: @unchecked Sendable {
             guard !waitingForKeyframe, let format else { return }
             let slices = units.filter { !isParameterSet($0) }
             guard !slices.isEmpty, let buffer = sampleBuffer(slices, format: format, pts: pts) else { return }
-            layer.sampleBufferRenderer.enqueue(buffer)
+            renderer.enqueue(buffer)
         }
     }
 

@@ -66,9 +66,11 @@ final class RemoteStreamModel {
         receiver.onLoss = { [weak control] frame in control?.send(["t": "loss", "frame": Int(frame)]) }
         receiver.onFailure = { [weak self] why in Task { @MainActor in self?.end(why) } }
         control.onEnd = { [weak self] why in Task { @MainActor in self?.end(why.isEmpty ? nil : why) } }
-        control.onMessage = { [weak self] message in
-            let copy = message
-            Task { @MainActor in self?.handle(copy, app: app, screen: screen, scale: scale) }
+        control.onMessage = { [weak self] data in
+            Task { @MainActor in
+                guard let message = (try? JSONSerialization.jsonObject(with: data)) as? StreamControl.Message else { return }
+                self?.handle(message, app: app, screen: screen, scale: scale)
+            }
         }
 
         self.video = video
@@ -278,7 +280,7 @@ private struct StreamSurface: UIViewRepresentable {
         var aspect = CGSize(width: 16, height: 9)
         var onTouch: (([[Any]]) -> Void)?
         private var ids: [ObjectIdentifier: Int] = [:]
-        private var next = 1
+        private var nextTouchID = 1
 
         override func layoutSubviews() {
             super.layoutSubviews()
@@ -297,7 +299,7 @@ private struct StreamSurface: UIViewRepresentable {
             for touch in touches {
                 let key = ObjectIdentifier(touch)
                 let id: Int
-                if phase == "d" { id = next; next = next % 65535 + 1; ids[key] = id } else if let known = ids[key] { id = known } else { continue }
+                if phase == "d" { id = nextTouchID; nextTouchID = nextTouchID % 65535 + 1; ids[key] = id } else if let known = ids[key] { id = known } else { continue }
                 if phase == "u" || phase == "c" { ids[key] = nil }
                 let at = touch.location(in: self)
                 let x = min(max((at.x - rect.minX) / max(rect.width, 1), 0), 1)
