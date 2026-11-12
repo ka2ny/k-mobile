@@ -147,6 +147,16 @@ struct HomeView: View {
                 .buttonStyle(.plain)
                 .disabled(!serviceAvailable(model.hub?.agents))
                 .opacity(serviceAvailable(model.hub?.agents) ? 1 : 0.6)
+                NavigationLink {
+                    YourComputersView()
+                } label: {
+                    serviceRow(
+                        "Your computers", detail: "Open another k-hole computer with this pairing", icon: .computer,
+                        ready: model.online ? true : nil, trailing: "chevron.right")
+                }
+                .buttonStyle(.plain)
+                .disabled(!model.online)
+                .opacity(model.online ? 1 : 0.6)
             }
         }
     }

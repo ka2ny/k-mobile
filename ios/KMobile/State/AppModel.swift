@@ -145,6 +145,73 @@ final class AppModel {
         }
     }
 
+    /// What a scanned code holds: the computer's address (the PIN is still typed), or a one-use
+    /// ticket another computer of yours made for this phone (`https://<computer>/#ticket=…`).
+    enum ScannedCode: Equatable {
+        case address(String)
+        case ticket(origin: URL, ticket: String)
+    }
+
+    static func readScannedCode(_ text: String) -> ScannedCode? {
+        let raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard raw.count <= 2048, var parts = URLComponents(string: raw), parts.scheme?.lowercased() == "https" else { return nil }
+        let fragment = parts.fragment ?? ""
+        parts.fragment = nil
+        parts.query = nil
+        guard let base = parts.string, let origin = try? ConnectionProfile.validatedOrigin(base) else { return nil }
+        if fragment.hasPrefix("ticket=") {
+            let ticket = String(fragment.dropFirst("ticket=".count))
+            guard (16...256).contains(ticket.count),
+                  ticket.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") })
+            else { return nil }
+            return .ticket(origin: origin, ticket: ticket)
+        }
+        return .address(origin.absoluteString)
+    }
+
+    /// Pairs with a ticket instead of a PIN: the computer that made it vouches for this phone once.
+    /// The new computer starts this phone at pointer control, as the PWA's ticket pairing does.
+    func pair(ticket: String, origin: URL, name: String) async -> Bool {
+        guard !busy, !linkBusy else { return false }
+        busy = true
+        pairingError = nil
+        defer { busy = false }
+        do {
+            if let known = profiles.first(where: { $0.origin == origin }) {
+                busy = false
+                select(known.id)
+                record("Opened", "\(known.name) was already paired with this phone.")
+                return true
+            }
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let profile = ConnectionProfile(id: UUID(), name: trimmed.isEmpty ? "My computer" : String(trimmed.prefix(40)),
+                                            origin: origin, kind: .computer)
+            let enrollment = GatewayClient(profile: profile, enrollmentCode: nil)
+            defer { enrollment.cancel() }
+            let response: GatewayModels.Pair
+            do {
+                response = try await enrollment.post("/api/pair", body: ["ticket": ticket, "name": "k-hole iOS"], as: GatewayModels.Pair.self)
+            } catch GatewayError.http(403, _) {
+                throw GatewayError.refused("That code was used already or has run out (they last two minutes). Make a new one on your computer.")
+            }
+            try Task.checkCancellation()
+            guard !response.token.isEmpty, response.device.kind == "phone" else {
+                throw GatewayError.refused("This address is for a different connection type.")
+            }
+            try credentials.save(.init(token: response.token, certificateSHA256: enrollment.certificateDigest), for: profile.id)
+            let updated = profiles + [profile]
+            defaults.set(try JSONEncoder().encode(updated), forKey: "native.connections")
+            profiles = updated
+            busy = false
+            select(profile.id)
+            record("Paired", "\(profile.name) let this phone in through your other computer.")
+            return true
+        } catch {
+            pairingError = error.localizedDescription
+            return false
+        }
+    }
+
     func refresh(includeCompanion: Bool = true) async {
         guard let client else { return }
         let current = generation

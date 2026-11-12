@@ -47,6 +47,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera reads the pairing code your computer shows. Nothing is recorded or kept.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Connect to your k-chain to set up Wi-Fi and relay its encrypted computer connection.</string>
 	<key>UIBackgroundModes</key>

@@ -10,6 +10,8 @@ struct PairingView: View {
     @State private var certificateCode = ""
     @State private var errorMessage: String?
     @State private var pairingTask: Task<Void, Never>?
+    @State private var scanning = false
+    @State private var scanNote: String?
 
     var body: some View {
         NavigationStack {
@@ -18,8 +20,22 @@ struct PairingView: View {
                     Section {
                         MobileLabel("Pair with your computer", icon: .connection)
                             .font(.title2.weight(.medium)).padding(.vertical, 8)
-                        Text("Enter its address and the PIN shown in Settings → Remote.")
+                        Text("Scan the code in Settings → Remote, or enter its address and the PIN shown there.")
                             .foregroundStyle(Design.muted)
+                        if kind == .computer {
+                            Button {
+                                scanNote = nil
+                                scanning = true
+                            } label: {
+                                Label("Scan the code on your computer", systemImage: "qrcode.viewfinder")
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                            }
+                            .buttonStyle(QuietProminentStyle())
+                            .disabled(model.busy)
+                            if let scanNote {
+                                PairingNote(text: scanNote)
+                            }
+                        }
                     }
                     Section("Connect to") {
                         Picker("Connection type", selection: $kind) {
@@ -48,11 +64,6 @@ struct PairingView: View {
                                 : "In Settings → Remote → k-chain, enable the companion. Enter its HTTPS address (usually port 8445), certificate code and PIN. Your phone must reach its home network."
                         )
                     }
-                    if let errorMessage {
-                        Section {
-                            Label(errorMessage, systemImage: "exclamationmark.circle").foregroundStyle(Design.danger)
-                        }
-                    }
                     Section {
                         Button {
                             pairingTask = Task {
@@ -79,6 +90,9 @@ struct PairingView: View {
                             }.frame(minHeight: 44)
                         }
                         .disabled(model.busy || address.isEmpty || pin.count != 6)
+                        if let errorMessage {
+                            PairingNote(text: errorMessage)
+                        }
                     }
                 }
                 .listRowBackground(Design.surface)
@@ -96,11 +110,43 @@ struct PairingView: View {
                 }
             }
             .interactiveDismissDisabled(model.busy)
+            .sheet(isPresented: $scanning) {
+                ScanSheet { code in
+                    scanning = false
+                    switch code {
+                    case .address(let found):
+                        address = found
+                        scanNote = "Address filled in. Type the PIN your computer shows."
+                    case .ticket(let origin, let ticket):
+                        pairingTask = Task {
+                            scanNote = "Pairing with \(origin.host() ?? "your computer")…"
+                            if await model.pair(ticket: ticket, origin: origin, name: name) {
+                                dismiss()
+                            } else {
+                                scanNote = model.pairingError ?? "That code didn't pair this phone."
+                            }
+                        }
+                    }
+                }
+            }
             .onDisappear {
                 pairingTask?.cancel()
                 pin = ""
                 certificateCode = ""
             }
         }
+    }
+}
+
+/// A result beside the control that made it: a calm dot and muted words, never a red card.
+struct PairingNote: View {
+    let text: String
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Circle().fill(Design.caution).frame(width: 7, height: 7).accessibilityHidden(true)
+            Text(text).font(.callout).foregroundStyle(Design.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
