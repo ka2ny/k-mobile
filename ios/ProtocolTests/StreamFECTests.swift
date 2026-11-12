@@ -4,7 +4,13 @@ import Testing
 
 /// The shared vector (also /mnt/project-files/k-mobile/fec-vector.json): the computer's encoder must give the same parity.
 struct StreamFECTests {
-    static let data: [[UInt8]] = (0..<3).map { c in (0..<8).map { i in UInt8((c * 37 + i * 11 + 1) & 0xff) } }
+    static let data: [[UInt8]] = (0..<3).map { (column: Int) -> [UInt8] in
+        let start = column * 37 + 1
+        return (0..<8).map { (index: Int) -> UInt8 in
+            let value = start + index * 11
+            return UInt8(value & 0xff)
+        }
+    }
     static let parity: [[UInt8]] = [
         [172, 196, 114, 223, 69, 193, 115, 21],
         [121, 70, 170, 116, 151, 113, 208, 239],
@@ -34,7 +40,12 @@ struct StreamFECTests {
 
     @Test func largerFrameSurvivesLoss() {
         let k = 20
-        let shards = (0..<k).map { c in (0..<StreamFEC.shardSize).map { i in UInt8(truncatingIfNeeded: c &* 131 &+ i &* 7) } }
+        let shards: [[UInt8]] = (0..<k).map { (column: Int) -> [UInt8] in
+            let start = column &* 131
+            return (0..<StreamFEC.shardSize).map { (index: Int) -> UInt8 in
+                UInt8(truncatingIfNeeded: start &+ index &* 7)
+            }
+        }
         let p = StreamFEC.parityCount(data: k, percent: 20, min: 2)
         #expect(p == 4)
         let par = StreamFEC.encode(shards, parity: p)
