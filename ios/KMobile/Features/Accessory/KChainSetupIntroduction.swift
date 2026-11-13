@@ -3,11 +3,13 @@ import SwiftUI
 struct KChainSetupIntroduction: View {
     let discover: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
+                    if !textSize.isAccessibilitySize {
                     HStack(spacing: 24) {
                         KChainDeviceView(face: .pair).frame(width: 100, height: 116).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 8) {
@@ -15,6 +17,7 @@ struct KChainSetupIntroduction: View {
                             Text("Your computer companion, connected through your iPhone.")
                                 .foregroundStyle(Design.muted)
                         }
+                    }
                     }
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Start on your k-chain").font(.title3.weight(.semibold))

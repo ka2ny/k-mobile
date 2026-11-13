@@ -22,6 +22,7 @@ struct WorkspaceFeatureView<Content: View>: View {
     @ViewBuilder var content: () -> Content
     @Environment(AppModel.self) private var model
     @State private var admittedGeneration: UUID?
+    @FocusState private var draftFocused: Bool
 
     private var unavailable: String? {
         if model.selected == nil { return "Connect a computer to get started." }
@@ -49,6 +50,7 @@ struct WorkspaceFeatureView<Content: View>: View {
                                 Text(feature == .beam ? "Ready to send" : "Your next task").font(.headline)
                                 TextField(feature == .beam ? "Words, a link, a code…" : "What would you like your computer to do?", text: draft, axis: .vertical)
                                     .lineLimit(3...8)
+                                    .focused($draftFocused)
                                     .padding(14)
                                     .background(Design.background, in: .rect(cornerRadius: Design.controlRadius))
                                     .accessibilityIdentifier("workspace.draft")
@@ -81,6 +83,13 @@ struct WorkspaceFeatureView<Content: View>: View {
                     }.quietPage()
                 }
                 .scrollDismissesKeyboard(.interactively)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Hide keyboard", systemImage: "keyboard.chevron.compact.down") { draftFocused = false }
+                            .accessibilityIdentifier("workspace.hideKeyboard")
+                    }
+                }
             } else {
                 content().id(model.connectionGeneration)
             }
@@ -88,6 +97,7 @@ struct WorkspaceFeatureView<Content: View>: View {
         .background(Design.background)
         .navigationTitle(feature.rawValue)
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: showConnections) { _, shown in if shown { draftFocused = false } }
         .onChange(of: unavailable, initial: true) { _, reason in
             if reason == nil { admittedGeneration = model.connectionGeneration }
         }

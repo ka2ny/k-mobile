@@ -8,7 +8,10 @@ struct BeamFileDetail: View {
     @State private var operation: Task<Void, Never>?
     @State private var preview: URL?
     private var key: String { file.downloadKey }
-    private var canPreview: Bool { file.size <= 32 * 1024 * 1024 }
+    private var canPreview: Bool {
+        let size = beam.saved[key] == nil ? file.size : (beam.savedSizes[key] ?? Int64.max)
+        return size <= 32 * 1024 * 1024
+    }
 
     var body: some View {
         NavigationStack {

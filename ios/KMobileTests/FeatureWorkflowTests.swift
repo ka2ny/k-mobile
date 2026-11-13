@@ -182,7 +182,7 @@ final class FeatureWorkflowTests: XCTestCase {
         }
         let window = UIWindow(windowScene: scene)
         window.frame = scene.coordinateSpace.bounds
-        let controller = UIHostingController(rootView: view.environment(\.mobileAccent, .blue))
+        let controller = UIHostingController(rootView: view.environment(\.mobileAccent, MobileAccent.sage.color).tint(MobileAccent.sage.color))
         window.rootViewController = controller
         window.makeKeyAndVisible()
         defer { window.isHidden = true }

@@ -56,6 +56,7 @@ final class BeamModel {
     /// Per row (inbox file id or folder file name): its own line, and a saved copy to share.
     private(set) var rowNote: [String: String] = [:]
     private(set) var saved: [String: URL] = [:]
+    private(set) var savedSizes: [String: Int64] = [:]
     private(set) var busyRows: Set<String> = []
     private(set) var loading = false
 
@@ -321,6 +322,7 @@ final class BeamModel {
             let folder = try Self.receivedFolder()
             let target = Self.unique(folder.appending(path: Self.safeName(name)))
             try FileManager.default.moveItem(at: temp, to: target)
+            savedSizes[row] = (try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init)
             saved[row] = target
             rowNote[row] = "Saved in Files → k-hole → Received."
             app.recordActivity("k-beam", "Received “\(target.lastPathComponent)”")

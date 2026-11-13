@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AccessoryView: View {
     @Environment(AccessoryModel.self) private var accessory
+    @Environment(\.dynamicTypeSize) private var textSize
     @State private var showSetup = false
     @State private var confirmForget = false
     @State private var showIntroduction = false
@@ -14,8 +15,10 @@ struct AccessoryView: View {
             Group {
                 Section {
                     HStack(alignment: .center, spacing: 20) {
-                        KChainDeviceView(face: accessory.face)
-                            .frame(width: 86, height: 100).accessibilityHidden(true)
+                        if !textSize.isAccessibilitySize {
+                            KChainDeviceView(face: accessory.face)
+                                .frame(width: 86, height: 100).accessibilityHidden(true)
+                        }
                         VStack(alignment: .leading, spacing: 8) {
                             Text(accessory.name ?? "Your k-chain").font(.title2.weight(.semibold))
                             Text(accessory.pairing.verified ? "Bluetooth connected" : accessory.savedRelay ? "Ready to reconnect" : "Make it yours")
