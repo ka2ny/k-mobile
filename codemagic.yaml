@@ -39,7 +39,7 @@ workflows:
         script: |
           set -euo pipefail
           cd ios
-          bundle _2.5.22_ exec fastlane ios test
+          python3 ci/run_bounded.py --seconds 900 -- bundle _2.5.22_ exec fastlane ios test
         test_report: ios/build/test-results/report.junit
       - name: Archive and package the unsigned device app
         script: |
@@ -94,7 +94,7 @@ workflows:
         script: |
           set -euo pipefail
           cd ios
-          bundle _2.5.22_ exec fastlane ios test
+          python3 ci/run_bounded.py --seconds 900 -- bundle _2.5.22_ exec fastlane ios test
         test_report: ios/build/test-results/report.junit
       - name: Export simulator screenshots
         script: |

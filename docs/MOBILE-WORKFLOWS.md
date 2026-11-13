@@ -16,9 +16,15 @@ File details show the server's name, type, size and modification date. Save down
 
 Documents and selected photo/video representations are copied to protected temporary files off the main actor. Videos are no longer loaded into a single Data allocation. Import and send lifetimes are owned, partial selections are cleaned up, and outgoing temporary files are removed after success, failure or cancellation. Upload retry/resume continues using the existing Beam API. Progress remains server/request based; this does not add a durable background transfer queue.
 
+## Latest OS audit
+
+Rechecked `ka2ny/k-flow-os` main at `eee7c62ac9c87ddd9ae44e2bbd00654a6aeccdb6` on 12 November: 104 commits beyond the extracted PWA baseline, with no open OS PRs. The mobile contract changes include the native stream, richer Assistant answers, standing goals, and shared PWA connection/refusal presentation. The desktop chat panel and window-management updates do not expose corresponding phone actions. Main-source presence does not establish deployment on a user's computer.
+
+The native app now covers the newly found Assistant fields. The copied PWA remains pinned and byte-identical; it was not silently updated to current OS assets.
+
 ## Assistant
 
-Tasks, executor choice, attachments, questions, queue/steer, history, conversations and desktop approval handoff remain native. The new memory sheet reads `/app/assistant?memory=<persona>` and shows facts, pinned/locked state, how-to notes and lessons. Memory management remains on the desktop, matching the PWA contract.
+Tasks, executor choice, attachments, questions, queue/steer, history, conversations and desktop approval handoff remain native. The new memory sheet reads `/app/assistant?memory=<persona>` and shows facts, pinned/locked state, how-to notes and lessons. Memory management remains on the desktop, matching the PWA contract. Standing goals use `?goals=1` alongside history: state, schedule, progress and requests waiting at the computer are read-only. Older gateways that omit goals keep working. Result cards and earlier chats preserve partial completion; recommended choices and unconfirmed facts are shown explicitly, along with all sources.
 
 All reads and actions capture the original gateway and validate the connection generation and request identity before applying results. Leaving/backgrounding invalidates pending responses. A late acknowledgement cannot clear another computer's draft. Attachments are bounded to four files and 20 MiB total; file reads happen off the main actor and stop at the remaining byte limit. Import failures are shown beside the attachment control. Task submission and attachment mutation cannot race.
 
@@ -42,7 +48,7 @@ The system picker now renders the same neutral device artwork as the app; it no 
 
 UI coverage includes disconnected routes in light/dark appearance, cancelled connection setup, draft retention, k-chain introduction and the largest accessibility text size. **Fixture-Files** and **Fixture-Assistant-Memory** images render real SwiftUI views against a test-only URLSession server. They are layout evidence, not live backend/device acceptance. Production has no fixture server or demo-success launch mode.
 
-`npm test` validates the seven extraction checks, including 12 JavaScript syntax checks and 47 worker-cache references. Fifteen CI-helper tests also run. `public/`, `source.json`, scoped workers, fonts and notices are unchanged; baseline hashes/cache IDs need no update.
+`npm test` validates the seven extraction checks, including 12 JavaScript syntax checks and 47 worker-cache references. Seventeen CI-helper tests also run. Individual native tests are limited to 180 seconds; a 900-second command watchdog lets CI publish diagnostics if the test runner stalls. `public/`, `source.json`, scoped workers, fonts and notices are unchanged; baseline hashes/cache IDs need no update.
 
 ## Remaining release work
 

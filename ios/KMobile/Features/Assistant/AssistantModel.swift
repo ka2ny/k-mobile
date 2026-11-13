@@ -21,6 +21,7 @@ final class AssistantModel {
     private(set) var loaded = false
     private(set) var readError: String?
     private(set) var history: [JSONValue] = []
+    private(set) var goals: [AssistantGoal] = []
     private(set) var unseen = 0
     private(set) var assistants: [Persona] = []
     private(set) var defaultAssistant: String?
@@ -37,6 +38,7 @@ final class AssistantModel {
 
     private let app: AppModel
     private var watchTask: Task<Void, Never>?
+    private var historyRefreshed = Date.distantPast
 
     private let originGateway: GatewayClient?
     private let originGeneration: UUID
@@ -100,6 +102,7 @@ final class AssistantModel {
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.refresh()
+                if Date().timeIntervalSince(self.historyRefreshed) >= 30 { await self.loadHistory() }
                 try? await Task.sleep(for: .seconds(2))
             }
         }
@@ -132,15 +135,18 @@ final class AssistantModel {
 
     func loadHistory() async {
         guard let gateway = gateway else { return }
-        var path = "/app/assistant?history=1"
+        var path = "/app/assistant?history=1&goals=1"
         let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
         if !q.isEmpty { path += "&q=" + Self.query(String(q.prefix(200))) }
         let request = begin(.history)
+        historyRefreshed = Date()
         defer { finish(.history, request) }
         do {
             let answer = try await gateway.get(path, as: JSONValue.self)
             guard valid(.history, request) else { return }
             history = answer["history"]?.array ?? []
+            goals = (answer["goals"]?.array ?? []).prefix(20).compactMap(AssistantGoal.init)
+            historyRefreshed = Date()
             unseen = answer["unseen"]?.int ?? 0
             defaultAssistant = answer["default"]?.string
             assistants = (answer["assistants"]?.array ?? []).compactMap { a in

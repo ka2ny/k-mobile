@@ -144,6 +144,18 @@ final class FeatureWorkflowTests: XCTestCase {
         XCTAssertEqual(try AssistantAttachment.read(url, limit: 65).count, 65)
     }
 
+    func testStandingGoalsCannotArriveFromPreviousComputer() async throws {
+        let (app, gateway) = try fixture(stall: "/app/assistant")
+        defer { gateway.cancel() }
+        let assistant = AssistantModel(app: app, gateway: gateway)
+        let request = Task { await assistant.loadHistory() }
+        try await waitUntil { WorkflowServer.hasPending }
+        app.select(nil)
+        WorkflowServer.release(body: ["goals": [["id": "g0123456789", "title": "Old computer"]]])
+        await request.value
+        XCTAssertTrue(assistant.goals.isEmpty)
+    }
+
     func testFileBackedImportCleansPartialSelection() throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -170,6 +182,24 @@ final class FeatureWorkflowTests: XCTestCase {
         })
         let assistant = AssistantModel(app: app, gateway: gateway)
         await assistant.loadHistory()
+        XCTAssertEqual(assistant.goals.count, 2)
+        XCTAssertEqual(assistant.goals.first?.needs, 1)
+        await captureFixture("Fixture-Assistant-Goals", view: NavigationStack {
+            ScrollView { AssistantGoalsView(assistant: assistant).quietPage() }.background(Design.background)
+                .navigationTitle("Assistant")
+        }.environment(app))
+        await captureFixture("Fixture-Assistant-Result", view: NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Design.gap) {
+                    Text("Partly completed").font(.title2.weight(.medium))
+                    AnswerParts(answer: .object(["answer": .string("Two options fit the brief."),
+                        "details": .array([.string("Option A is available now."), .string("Option B needs a longer lead time.")]),
+                        "pick": .string("Option A, for the earlier delivery."),
+                        "unconfirmed": .array([.string("Weekend delivery")]),
+                        "not_done": .array([.string("No order was placed.")])]), fallback: "")
+                }.quietCard().quietPage()
+            }.background(Design.background).navigationTitle("Assistant")
+        })
         await assistant.loadMemory("helper")
         XCTAssertEqual(assistant.memory?.facts.count, 2)
         XCTAssertEqual(assistant.memory?.howTo.count, 1)
@@ -181,7 +211,7 @@ final class FeatureWorkflowTests: XCTestCase {
             XCTFail("No simulator window scene"); return
         }
         let window = UIWindow(windowScene: scene)
-        window.frame = scene.coordinateSpace.bounds
+        window.frame = scene.effectiveGeometry.coordinateSpace.bounds
         let controller = UIHostingController(rootView: view.environment(\.mobileAccent, MobileAccent.sage.color).tint(MobileAccent.sage.color))
         window.rootViewController = controller
         window.makeKeyAndVisible()
@@ -230,6 +260,8 @@ private final class WorkflowServer: URLProtocol, @unchecked Sendable {
                 ["name": "Walkthrough.mov", "size": 84000000, "at": 1794420000, "type": "video/quicktime"]]])
         } else if path == "/app/assistant" {
             reply(body: ["now": ["running": false], "default": "helper", "assistants": [["id": "helper", "name": "Assistant"]],
+                         "goals": [["id": "g0123456789", "title": "Keep the launch brief current", "assistant": "helper", "state": "active", "every": "Every morning", "progress": "The draft is ready to review.", "needs": 1],
+                                   ["id": "gabcdef0123", "title": "Watch project updates", "state": "paused", "why": "budget", "needs": 0]],
                          "memory": ["facts": [["text": "Use concise release notes.", "pinned": true], ["text": "The mobile project uses SwiftUI.", "locked": true]],
                                     "notes": [["kind": "howto", "title": "Prepare a release", "body": "Review changes, run checks and prepare the handoff.", "used": 3]]]])
         } else if path.contains("/changes/") {

@@ -49,7 +49,7 @@ Regenerate the project with `python3 ios/generate_project.py` after adding/remov
 | Desktop connections | Saved HTTPS origins; phone/companion identities; PIN exchange; Keychain credentials; host switching; local forgetting |
 | Computer | Authenticated device status; full-control request; media, volume, focus, confirmed lock; server receipts |
 | Agent decisions | Current decision summary, explicit review/confirmation, allow/deny with exact IDs, stale-response handling |
-| Assistant | Tasks, bounded attachments, history, questions, queue/steer, threads, executor selection, read-only memory and desktop approval handoff to native Remote |
+| Assistant | Tasks, bounded attachments, history, questions, queue/steer, threads, executor selection, read-only memory/standing goals, structured partial results and desktop approval handoff to native Remote |
 | Files | Combined search/type filters, name/date/size sorting, list/grid, 60-item paging, details, native Quick Look, save/share |
 | Accessory selection | AccessorySetupKit with published service IDs; CoreBluetooth reconnect/restoration and GATT rediscovery |
 | Board Wi-Fi | Security 1 PoP, X25519/SHA256/AES-CTR, descriptor-based endpoints, scan/manual SSID, configure/apply/status, failed-network reset |

@@ -108,6 +108,7 @@ struct AssistantView: View {
                     Label("What \(a.name(of: persona)) remembers", systemImage: "brain")
                 }.buttonStyle(QuietSecondaryStyle())
             }
+            if !a.running, !a.goals.isEmpty { AssistantGoalsView(assistant: a) }
             historySection(a)
             threadsSection(a)
         }
@@ -357,8 +358,8 @@ struct AssistantView: View {
     private func resultCard(_ s: JSONValue) -> some View {
         VStack(alignment: .leading, spacing: Design.gap) {
             HStack(spacing: 8) {
-                Circle().fill(s["ok"]?.bool == false ? Design.caution : Design.success).frame(width: 8, height: 8)
-                Text(s["ok"]?.bool == false ? "It didn't finish" : "Last result").font(.headline)
+                Circle().fill(s["ok"]?.bool == false || s["reason"]?.string == "partial" ? Design.caution : Design.success).frame(width: 8, height: 8)
+                Text(s["reason"]?.string == "partial" ? "Partly completed" : s["ok"]?.bool == false ? "It didn't finish" : "Last result").font(.headline)
             }
             AnswerParts(answer: s["answer"], fallback: s["summary"]?.string ?? s["reason"]?.string ?? "")
         }.quietCard()
@@ -390,7 +391,7 @@ struct AssistantView: View {
                 let id = item["id"]?.string ?? ""
                 Button { openChatRef = Ref(id: id) } label: {
                     HStack(alignment: .top) {
-                        Circle().fill(item["ok"]?.bool == false ? Design.caution : Design.success)
+                        Circle().fill(item["ok"]?.bool == false || item["reason"]?.string == "partial" ? Design.caution : Design.success)
                             .frame(width: 8, height: 8).padding(.top, 6)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item["title"]?.string ?? item["goal"]?.string ?? "Task")
@@ -412,6 +413,7 @@ struct AssistantView: View {
 
     private func historyMeta(_ item: JSONValue) -> String {
         var parts: [String] = []
+        if item["reason"]?.string == "partial" { parts.append("Partly completed") }
         if let name = item["assistant_name"]?.string { parts.append(name) }
         if let turns = item["turns"]?.int, turns > 1 { parts.append("\(turns) turns") }
         if let steps = item["steps"]?.int { parts.append("\(steps) steps") }
@@ -535,13 +537,22 @@ struct AnswerParts: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(answer?["answer"]?.string ?? fallback).textSelection(.enabled)
             ForEach(Array(list("details").enumerated()), id: \.offset) { _, d in Text("• " + d).font(.callout) }
+            if let pick = answer?["pick"]?.string, !pick.isEmpty {
+                Text("Recommended: \(pick)").font(.callout.weight(.medium)).textSelection(.enabled)
+            }
+            if !list("unconfirmed").isEmpty {
+                Text("Not found in its sources").font(.callout.weight(.semibold))
+                ForEach(Array(list("unconfirmed").enumerated()), id: \.offset) { _, item in
+                    Text("• \(item)").font(.callout).foregroundStyle(Design.caution).textSelection(.enabled)
+                }
+            }
             if !list("not_done").isEmpty {
                 Text("Not done: " + list("not_done").joined(separator: "; ")).font(.callout)
                     .foregroundStyle(Design.muted)
             }
             if !list("sources").isEmpty {
                 Text("Read at " + list("sources").joined(separator: ", ")).font(.footnote)
-                    .foregroundStyle(Design.muted).lineLimit(3)
+                    .foregroundStyle(Design.muted).textSelection(.enabled)
             }
             if let words = answer?["answer"]?.string ?? Optional(fallback), !words.isEmpty {
                 Button("Copy the answer", systemImage: "doc.on.doc") { UIPasteboard.general.string = words }
@@ -571,6 +582,7 @@ private struct AssistantChatSheet: View {
                         ForEach(Array((chat["turns"]?.array ?? []).enumerated()), id: \.offset) { _, turn in
                             VStack(alignment: .leading, spacing: Design.gap) {
                                 Text(turn["goal"]?.string ?? "").font(.headline).textSelection(.enabled)
+                                if turn["reason"]?.string == "partial" { Text("Partly completed").font(.callout).foregroundStyle(Design.caution) }
                                 AnswerParts(answer: turn["answer"],
                                             fallback: turn["summary"]?.string ?? turn["reason"]?.string ?? "")
                             }.quietCard()
