@@ -79,6 +79,26 @@ final class NavigationTests: XCTestCase {
     }
 
     @MainActor
+    func testDraftSurvivesCancelledConnectionAndTabSwitch() throws {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.navigationBars["Computer"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Beam"].tap()
+        let draft = app.descendants(matching: .any)["workspace.draft"].firstMatch
+        XCTAssertTrue(draft.waitForExistence(timeout: 3))
+        draft.tap()
+        draft.typeText("A link for later")
+        app.buttons["Connections"].tap()
+        XCTAssertTrue(app.navigationBars["Connections"].waitForExistence(timeout: 3))
+        app.buttons["Done"].tap()
+        XCTAssertEqual(draft.value as? String, "A link for later")
+        app.tabBars.buttons["Agents"].tap()
+        app.tabBars.buttons["Beam"].tap()
+        XCTAssertEqual(draft.value as? String, "A link for later")
+        capture("Beam-Draft", app)
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         measure(metrics: [XCTApplicationLaunchMetric()]) { XCUIApplication().launch() }
     }

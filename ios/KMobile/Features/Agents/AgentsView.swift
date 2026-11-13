@@ -4,35 +4,20 @@ import SwiftUI
 /// decision card and composer, new sessions, changes and quick replies. Every result shows next
 /// to the control that asked for it (`AgentsModel.rowNote`, keyed per control).
 struct AgentsView: View {
-    @Environment(AppModel.self) private var model
-    @State private var agents: AgentsModel?
-    @Environment(\.scenePhase) private var scenePhase
+    let agents: AgentsModel
     @State private var showNew = false
     @State private var showReplies = false
 
     var body: some View {
-        Group {
-            if let agents {
-                AgentsQueue(agents: agents, showNew: $showNew, showReplies: $showReplies)
-            } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
+        AgentsQueue(agents: agents, showNew: $showNew, showReplies: $showReplies)
         .background(Design.background)
         .navigationTitle("Agents")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: "\(model.connectionGeneration)-\(scenePhase)") {
-            guard scenePhase == .active else { agents?.stop(); return }
-            let current = agents ?? AgentsModel(app: model)
-            agents = current
-            current.start()
-        }
-        .onDisappear { agents?.stop() }
         .sheet(isPresented: $showNew) {
-            if let agents { NavigationStack { AgentNewSession(agents: agents) } }
+            NavigationStack { AgentNewSession(agents: agents) }
         }
         .sheet(isPresented: $showReplies) {
-            if let agents { NavigationStack { AgentRepliesEditor(agents: agents) } }
+            NavigationStack { AgentRepliesEditor(agents: agents) }
         }
     }
 }

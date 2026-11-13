@@ -199,7 +199,7 @@ final class RemoteStreamModel {
         guard !text.isEmpty else { return }
         control?.send(["t": "text", "s": String(text.prefix(4096))])
     }
-    func key(_ name: String) { control?.send(["t": "key", "k": name]) }
+    func key(_ key: RemoteKey) { control?.send(key.message) }
 }
 
 struct RemoteStreamView: View {
@@ -209,6 +209,8 @@ struct RemoteStreamView: View {
     @State private var connectTask: Task<Void, Never>?
     @Environment(\.scenePhase) private var scenePhase
     @FocusState private var keyboard: Bool
+    @Environment(\.displayScale) private var displayScale
+    @State private var showKeyboard = false
 
     var body: some View {
         GeometryReader { geo in
@@ -239,7 +241,7 @@ struct RemoteStreamView: View {
                 .font(.callout).foregroundStyle(Design.muted)
             Button(stream.phase == .starting ? "Connecting…" : "Connect", systemImage: "play.fill") {
                 connectTask?.cancel()
-                connectTask = Task { await stream.connect(app, screen: size, scale: UIScreen.main.scale) }
+                connectTask = Task { await stream.connect(app, screen: size, scale: displayScale) }
             }
             .buttonStyle(QuietProminentStyle())
             .disabled(stream.phase == .starting || app.gateway == nil)
@@ -259,7 +261,7 @@ struct RemoteStreamView: View {
     private func disconnect() {
         connectTask?.cancel(); connectTask = nil
         stream.disconnect()
-        keyboard = false
+        keyboard = false; showKeyboard = false; typing = ""
     }
 
     private var overlay: some View {
@@ -267,8 +269,9 @@ struct RemoteStreamView: View {
             HStack(spacing: Design.gap) {
                 Text(stream.stats).font(.caption.monospacedDigit()).foregroundStyle(.white.opacity(0.7))
                 Spacer()
-                Button("Keyboard", systemImage: "keyboard") { keyboard.toggle() }
+                Button("Keyboard", systemImage: "keyboard") { showKeyboard.toggle(); keyboard = showKeyboard }
                     .labelStyle(.iconOnly)
+                    .disabled(app.device?.control != "full")
                 Button("Disconnect", systemImage: "xmark") { disconnect() }
                     .labelStyle(.iconOnly)
             }
@@ -279,25 +282,52 @@ struct RemoteStreamView: View {
                 Label("The computer is asking something. Answer it there.", systemImage: "pause.circle")
                     .font(.footnote).padding(8).background(.ultraThinMaterial, in: Capsule())
             }
+            if app.device?.control != "full" {
+                Text("Keyboard needs full control. Approve it in desktop Settings.")
+                    .font(.footnote).padding(8).background(.ultraThinMaterial, in: Capsule())
+            }
             if let note = stream.note {
                 Text(note).font(.footnote).padding(8).background(.ultraThinMaterial, in: Capsule())
             }
             Spacer()
-            TextField("Type on the computer", text: $typing)
-                .focused($keyboard)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .opacity(keyboard ? 1 : 0.01)
-                .frame(height: keyboard ? nil : 1)
-                .onChange(of: typing) { _, new in
-                    guard !new.isEmpty else { return }
-                    stream.type(new)
-                    typing = ""
+            if showKeyboard {
+                VStack(spacing: 10) {
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 8) {
+                            remoteKey("Esc", key: .escape)
+                            remoteKey("Tab", key: .tab)
+                            remoteKey("Delete", key: .delete)
+                            remoteKey("Return", key: .enter)
+                            remoteKey("←", key: .left, accessibility: "Left arrow")
+                            remoteKey("↑", key: .up, accessibility: "Up arrow")
+                            remoteKey("↓", key: .down, accessibility: "Down arrow")
+                            remoteKey("→", key: .right, accessibility: "Right arrow")
+                        }
+                    }.scrollIndicators(.hidden)
+                    HStack(alignment: .bottom) {
+                        TextField("Type, then send", text: $typing, axis: .vertical)
+                            .lineLimit(1...4).focused($keyboard)
+                            .textInputAutocapitalization(.never).autocorrectionDisabled()
+                            .accessibilityLabel("Text to send to computer")
+                        Button("Send text", systemImage: "arrow.up.circle.fill") {
+                            stream.type(typing); typing = ""; keyboard = true
+                        }.labelStyle(.iconOnly).font(.title2).frame(minWidth: 44, minHeight: 44)
+                            .disabled(typing.isEmpty || typing.count > 4096 || stream.held)
+                    }
+                    if typing.count > 4096 { Text("Send up to 4,096 characters at a time.").font(.footnote) }
                 }
-                .onSubmit { stream.key("Return"); keyboard = true }
+                .padding(12).background(.regularMaterial, in: .rect(cornerRadius: 16))
                 .padding(.horizontal, Design.inset)
+            }
         }
     }
+    private func remoteKey(_ title: String, key: RemoteKey, accessibility: String? = nil) -> some View {
+        Button(title) { stream.key(key); keyboard = true }
+            .font(.callout.weight(.medium)).frame(minWidth: 44, minHeight: 44)
+            .background(.thinMaterial, in: .rect(cornerRadius: 8))
+            .accessibilityLabel(accessibility ?? title).disabled(stream.held)
+    }
+
 }
 
 /// Hosts the display layer and turns finger touches into contract `touch` points, normalised to the picture.

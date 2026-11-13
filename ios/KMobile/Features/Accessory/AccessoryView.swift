@@ -12,23 +12,22 @@ struct AccessoryView: View {
         List {
             Group {
                 Section {
-                    VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .center, spacing: 20) {
                         KChainDeviceView(face: accessory.face)
-                            .frame(maxWidth: 220, maxHeight: 255)
-                            .frame(maxWidth: .infinity)
-                        Text(accessory.name ?? "Your k-chain")
-                            .font(.title.weight(.medium)).fixedSize(horizontal: false, vertical: true)
-                        Text(accessory.status).foregroundStyle(Design.muted)
-                        if let firmware = accessory.firmwareVersion {
-                            Text("Firmware \(firmware)").font(.footnote).foregroundStyle(Design.muted)
-                        }
-                        if accessory.streams > 0 {
-                            Label(
-                                accessory.streams == 1
-                                    ? "1 active connection" : "\(accessory.streams) active connections",
-                                systemImage: "lock.shield")
+                            .frame(width: 86, height: 100).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(accessory.name ?? "Your k-chain").font(.title2.weight(.semibold))
+                            Text(accessory.pairing.verified ? "Bluetooth connected" : accessory.savedRelay ? "Ready to reconnect" : "Make it yours")
+                                .font(.subheadline).foregroundStyle(Design.muted)
+                            if let firmware = accessory.firmwareVersion {
+                                Text("Firmware \(firmware)").font(.footnote).foregroundStyle(Design.muted)
+                            }
                         }
                     }.padding(.vertical, 12)
+                    if accessory.savedRelay {
+                        LabeledContent("Phone relay", value: accessory.streams > 0 ? "Active" : accessory.pairing.verified ? "Standing by" : "Disconnected")
+                        Text(accessory.status).font(.callout).foregroundStyle(Design.muted)
+                    }
                 }
                 Section {
                     Button(
@@ -47,9 +46,7 @@ struct AccessoryView: View {
                 } header: {
                     Text("Bluetooth companion")
                 } footer: {
-                    Text(
-                        "On the board, open Settings → Bluetooth → Pair a phone. Confirm the same numbers on both screens. Your phone carries the board’s encrypted traffic to your computer when needed. Keep the app open for the most reliable connection."
-                    )
+                    Text("Pair once to let k-chain use your phone’s network. Keep k-mobile open while the relay is in use.")
                 }
                 Section {
                     Button("Set up board Wi-Fi", systemImage: "wifi") {
@@ -63,9 +60,7 @@ struct AccessoryView: View {
                         MobileLabel("Link phone on your computer", icon: .computer)
                     }
                 } footer: {
-                    Text(
-                        "Wi-Fi setup, Bluetooth pairing and the computer’s phone link each have their own confirmation. Computer permissions remain in desktop Settings."
-                    )
+                    Text("Add Wi-Fi for a direct connection, or associate this phone with your board on the computer.")
                 }
                 if accessory.savedRelay {
                     Section {

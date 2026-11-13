@@ -9,7 +9,9 @@ struct AssistantView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @State private var assistant: AssistantModel?
-    @State private var goal = ""
+    @Binding var goal: String
+    @State private var importTask: Task<Void, Never>?
+    @State private var memoryPersona: Ref?
     @State private var steerText = ""
     @State private var answerText: [String: String] = [:]
     @State private var picking = false
@@ -56,10 +58,12 @@ struct AssistantView: View {
         .onChange(of: model.selectedID) {
             assistant?.stop()
             assistant = nil
-            goal = ""
             steerText = ""
         }
-        .onDisappear { assistant?.stop() }
+        .onDisappear { importTask?.cancel(); assistant?.stop() }
+        .sheet(item: $memoryPersona) { ref in
+            if let a = assistant { AssistantMemoryView(assistant: a, persona: ref.id) }
+        }
         .sheet(item: $openChatRef) { ref in
             if let a = assistant { AssistantChatSheet(assistant: a, id: ref.id) }
         }
@@ -68,14 +72,12 @@ struct AssistantView: View {
         }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.image, .pdf, .plainText],
                       allowsMultipleSelection: true) { result in
-            guard case .success(let urls) = result, let a = assistant else { return }
-            Task {
-                for url in urls {
-                    let scoped = url.startAccessingSecurityScopedResource()
-                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                    guard let data = try? Data(contentsOf: url) else { continue }
-                    await a.attach(data, name: url.lastPathComponent)
-                }
+            guard let a = assistant else { return }
+            switch result {
+            case .success(let urls):
+                importTask?.cancel()
+                importTask = Task { await a.importFiles(urls) }
+            case .failure(let error): a.attachmentError(error)
             }
         }
     }
@@ -100,6 +102,11 @@ struct AssistantView: View {
             } else {
                 composer(a)
                 if let s = a.summary { resultCard(s) }
+            }
+            if let persona = a.chosenAssistant ?? a.defaultAssistant ?? a.assistants.first?.id {
+                Button { memoryPersona = Ref(id: persona) } label: {
+                    Label("What \(a.name(of: persona)) remembers", systemImage: "brain")
+                }.buttonStyle(QuietSecondaryStyle())
             }
             historySection(a)
             threadsSection(a)
@@ -133,13 +140,13 @@ struct AssistantView: View {
             HStack {
                 Button("Add a file", systemImage: "paperclip") { picking = true }
                     .buttonStyle(QuietSecondaryStyle())
-                    .disabled(a.busy.contains(.attach) || a.attachments.count >= AssistantModel.maxFiles)
+                    .disabled(a.importing || a.busy.contains(.composer) || a.busy.contains(.attach) || a.attachments.count >= AssistantModel.maxFiles)
                 Spacer(minLength: 0)
                 Button("Do it", systemImage: "arrow.up") {
-                    Task { if await a.startTask(text) { goal = "" } }
+                    Task { if await a.startTask(text), goal.trimmingCharacters(in: .whitespacesAndNewlines) == text { goal = "" } }
                 }
                 .buttonStyle(QuietProminentStyle())
-                .disabled(text.isEmpty || a.busy.contains(.composer))
+                .disabled(text.isEmpty || a.busy.contains(.composer) || a.busy.contains(.attach) || a.importing)
             }
             if a.busy.contains(.composer) { ProgressView("Sending to your computer…").font(.callout) }
             if let note = a.notes[.composer] { NoteLine(note: note) }
@@ -147,7 +154,7 @@ struct AssistantView: View {
     }
 
     @ViewBuilder private func attachments(_ a: AssistantModel) -> some View {
-        if !a.attachments.isEmpty || a.busy.contains(.attach) || a.notes[.attach] != nil {
+        if !a.attachments.isEmpty || a.importing || a.busy.contains(.attach) || a.notes[.attach] != nil {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(a.attachments) { f in
                     HStack {
@@ -158,8 +165,10 @@ struct AssistantView: View {
                         Spacer(minLength: 0)
                         Button("Remove \(f.name)", systemImage: "xmark") { Task { await a.unattach(f.id) } }
                             .labelStyle(.iconOnly).buttonStyle(.borderless)
+                            .disabled(a.importing || a.busy.contains(.attach) || a.busy.contains(.composer))
                     }
                 }
+                if a.importing && !a.busy.contains(.attach) { ProgressView("Preparing attachment…") }
                 if a.busy.contains(.attach) { ProgressView("Sending the file…").font(.callout) }
                 if let note = a.notes[.attach] { NoteLine(note: note) }
             }

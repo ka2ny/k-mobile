@@ -3,13 +3,14 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @Binding var showConnections: Bool
+    var setUpAccessory: () -> Void = {}
     @Environment(\.mobileAccent) private var accent
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Design.inset) {
                 PageHeading(
-                    title: "Your computer", detail: "Open your desktop. Control what’s playing. Stay focused.",
+                    title: model.selected?.name ?? "Your computer, wherever you are.", detail: model.selected == nil ? "Connect once. Bring your desktop, files and unfinished work with you." : "Open your desktop. Control what’s playing. Stay focused.",
                     eyebrow: "K-HOLE / MOBILE")
 
                 connectionCard
@@ -22,6 +23,10 @@ struct HomeView: View {
                                ready: model.hub?.remote, trailing: "arrow.up.right")
                 }.buttonStyle(.plain).accessibilityIdentifier("computer.remote")
                 if model.selected != nil { ComputerControlsView() }
+                if model.selected == nil {
+                    Button("Set up a k-chain", systemImage: "link", action: setUpAccessory)
+                        .buttonStyle(QuietSecondaryStyle())
+                } else {
                 HStack(spacing: Design.gap) {
                     NavigationLink { ActivityView() } label: {
                         MobileLabel("Recent activity", icon: .activity)
@@ -31,6 +36,7 @@ struct HomeView: View {
                         MobileLabel("Computers", icon: .computer)
                     }
                 }.font(.callout).padding(.vertical, 8)
+                }
 
             }.quietPage().quietEntrance()
         }
@@ -64,7 +70,7 @@ struct HomeView: View {
                 }
                 Text(model.selected?.name ?? "Connect a computer")
                     .font(.title2.weight(.medium))
-                Text(model.selected?.origin.host ?? "Use the address and PIN in desktop Settings → Remote.")
+                Text(model.selected?.origin.host ?? "On your computer, open Settings → Remote. Use its address and pairing PIN here.")
                     .font(.subheadline).foregroundStyle(Design.muted).textSelection(.enabled)
                 if let error = model.connectionError {
                     Text(error).font(.callout).foregroundStyle(Design.muted)
@@ -74,7 +80,7 @@ struct HomeView: View {
                     Button("Switch connection", systemImage: "arrow.left.arrow.right") { showConnections = true }
                         .buttonStyle(QuietSecondaryStyle()).disabled(model.interacting)
                 } else {
-                    Button("Add connection", systemImage: "plus") { showConnections = true }
+                    Button("Connect my computer", systemImage: "plus") { showConnections = true }
                         .buttonStyle(QuietProminentStyle()).disabled(model.interacting)
                 }
             }.quietCard()
@@ -123,11 +129,13 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.headline)
                 Text(detail).font(.subheadline).foregroundStyle(Design.muted)
+                if model.selected != nil {
                 Text(
                     ready == nil
                         ? "Availability unknown" : ready == true ? "Enabled on computer" : "Off on computer"
                 )
                 .font(.footnote).foregroundStyle(Design.muted)
+                }
             }
             Spacer(minLength: 0)
             Image(systemName: trailing).accessibilityHidden(true)

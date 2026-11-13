@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import UIKit
+import SwiftUI
 @preconcurrency import AccessorySetupKit
 @preconcurrency import CoreBluetooth
 
@@ -130,7 +131,9 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         let descriptor = ASDiscoveryDescriptor()
         descriptor.bluetoothServiceUUID = mode == .relay ? Self.relayService : Self.setupService
         descriptor.bluetoothNameSubstring = "k-chain-"
-        guard let image = UIImage(named: "KChainPicker") else { error = "The k-chain picture is missing from this build, so the system picker can't open. Reinstall the app."; return }
+        let renderer = ImageRenderer(content: KChainDeviceView(face: .pair).frame(width: 280, height: 325))
+        renderer.scale = 2
+        guard let image = renderer.uiImage else { error = "The accessory picker couldn't open. Try again."; return }
         let item = ASPickerDisplayItem(name: "k-chain", productImage: image, descriptor: descriptor)
         pendingPicker = true
         let current = epoch
@@ -385,7 +388,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         guard error == nil, characteristic.isNotifying else { fail(error?.localizedDescription ?? "Bluetooth notifications were rejected."); return }
         ready = true
         pairing.subscribed()
-        status = "Confirm the matching numbers on iPhone and k-chain. Waiting for the board to verify the link…"
+        if !pairing.verified { status = "Confirm the matching numbers on iPhone and k-chain." }
         // Subscription is not evidence that SMP bonding succeeded. Never label this state "Paired".
     }
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {

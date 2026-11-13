@@ -9,18 +9,23 @@ struct AppShell: View {
     @State private var showSettings = false
     @State private var selectedTab = Destination.computer
     @State private var beamDrafts: [UUID: String] = [:]
+    @State private var assistantDrafts: [UUID: String] = [:]
+    @State private var newBeamDraft = ""
+    @State private var newAssistantDraft = ""
+    @State private var agents: AgentsModel?
+    @State private var agentsGeneration: UUID?
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Computer", image: MobileGlyph.computer.asset, value: .computer) {
                 NavigationStack {
-                    HomeView(showConnections: $showConnections)
+                    HomeView(showConnections: $showConnections) { selectedTab = .accessory }
                         .toolbar { connectionToolbar }
                 }
             }
             Tab("Beam", image: MobileGlyph.beam.asset, value: .beam) {
                 NavigationStack {
-                    WorkspaceFeatureView(feature: .beam, showConnections: $showConnections) {
+                    WorkspaceFeatureView(feature: .beam, showConnections: $showConnections, draft: beamDraft(for: model.selectedID)) {
                         BeamView(words: beamDraft(for: model.selectedID))
                     }
                         .toolbar { connectionToolbar }
@@ -31,15 +36,18 @@ struct AppShell: View {
                     if model.selected?.kind == .companion {
                         CompanionRequestsView().toolbar { connectionToolbar }
                     } else {
-                        WorkspaceFeatureView(feature: .agents, showConnections: $showConnections) { AgentsView() }
+                        WorkspaceFeatureView(feature: .agents, showConnections: $showConnections) {
+                            if let agents { AgentsView(agents: agents) }
+                            else { ProgressView("Reading sessions…") }
+                        }
                             .toolbar { connectionToolbar }
                     }
                 }
             }
             Tab("Assistant", image: MobileGlyph.assistant.asset, value: .assistant) {
                 NavigationStack {
-                    WorkspaceFeatureView(feature: .assistant, showConnections: $showConnections) {
-                        AssistantView(isActive: selectedTab == .assistant)
+                    WorkspaceFeatureView(feature: .assistant, showConnections: $showConnections, draft: assistantDraft(for: model.selectedID)) {
+                        AssistantView(isActive: selectedTab == .assistant, goal: assistantDraft(for: model.selectedID))
                     }.toolbar { connectionToolbar }
                 }
             }
@@ -47,7 +55,22 @@ struct AppShell: View {
                 NavigationStack { AccessoryView().toolbar { connectionToolbar } }
             }
         }
+        .task(id: "agents-\(model.connectionGeneration)-\(scenePhase)-\(selectedTab)-\(model.online)") {
+            agents?.stop()
+            guard selectedTab == .agents, scenePhase == .active, model.online, model.selected?.kind == .computer else { return }
+            // Owned above NavigationStack so pushing a session does not cancel its requests.
+            if agentsGeneration != model.connectionGeneration {
+                agents = AgentsModel(app: model)
+                agentsGeneration = model.connectionGeneration
+            }
+            agents?.start()
+        }
         .onChange(of: scenePhase) { _, phase in if phase == .background { accessory.backgrounded() } }
+        .onChange(of: model.selectedID) { previous, selected in
+            guard previous == nil, let selected else { return }
+            if !newBeamDraft.isEmpty { beamDrafts[selected] = newBeamDraft; newBeamDraft = "" }
+            if !newAssistantDraft.isEmpty { assistantDrafts[selected] = newAssistantDraft; newAssistantDraft = "" }
+        }
         .sensoryFeedback(.success, trigger: model.acceptedActionCount)
         .sensoryFeedback(.error, trigger: model.failedActionCount)
         .sheet(isPresented: $showConnections) { ConnectionsView() }
@@ -102,8 +125,14 @@ struct AppShell: View {
 
     /// Bind to a captured computer ID, including late acknowledgements from its old view.
     private func beamDraft(for id: UUID?) -> Binding<String> {
-        Binding(get: { id.flatMap { beamDrafts[$0] } ?? "" }, set: { value in
-            if let id { beamDrafts[id] = value }
+        Binding(get: { id.flatMap { beamDrafts[$0] } ?? (id == nil ? newBeamDraft : "") }, set: { value in
+            if let id { beamDrafts[id] = value } else { newBeamDraft = value }
+        })
+    }
+
+    private func assistantDraft(for id: UUID?) -> Binding<String> {
+        Binding(get: { id.flatMap { assistantDrafts[$0] } ?? (id == nil ? newAssistantDraft : "") }, set: { value in
+            if let id { assistantDrafts[id] = value } else { newAssistantDraft = value }
         })
     }
 }
