@@ -7,9 +7,8 @@ struct BeamImport: Transferable, Sendable {
     let file: BeamModel.Outgoing
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(importedContentType: .item) { received in
-            try await Task.detached {
-                BeamImport(file: try copy(received.file))
-            }.value
+            let url = received.file
+            return try await Task.detached { BeamImport(file: try copy(url)) }.value
         }
     }
 

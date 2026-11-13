@@ -14,6 +14,7 @@ struct BeamView: View {
     @State private var photos: [PhotosPickerItem] = []
     @State private var pickNote: String?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var textSize
     @State private var section = Section.send
     @State private var importTask: Task<Void, Never>?
     @State private var importing = false
@@ -85,14 +86,15 @@ struct BeamView: View {
     // MARK: Send
 
     private func sendCard(_ beam: BeamModel) -> some View {
-        VStack(alignment: .leading, spacing: Design.gap) {
+        let layout = textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+        return VStack(alignment: .leading, spacing: Design.gap) {
             MobileLabel("Send to \(beam.me?.name ?? "your computer")", icon: .beam).font(.headline)
             TextField("Words, a link, a code…", text: $words, axis: .vertical)
                 .lineLimit(1...6)
                 .padding(12)
                 .background(Design.surface, in: RoundedRectangle(cornerRadius: Design.controlRadius))
                 .disabled(beam.sending || importing)
-            HStack(spacing: 12) {
+            layout {
                 Button("Send text") {
                     let submitted = words
                     beam.send(text: submitted) {
@@ -100,7 +102,7 @@ struct BeamView: View {
                     }
                 }
                 .buttonStyle(QuietProminentStyle())
-                .disabled(beam.sending || words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(beam.sending || importing || words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 PhotosPicker(selection: $photos, maxSelectionCount: 20, matching: .any(of: [.images, .videos])) {
                     Text("Photos")
                 }

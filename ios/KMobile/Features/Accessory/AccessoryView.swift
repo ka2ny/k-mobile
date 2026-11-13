@@ -6,6 +6,7 @@ struct AccessoryView: View {
     @State private var confirmForget = false
     @State private var showIntroduction = false
     @State private var discoverAfterDismissal = false
+    @State private var retryAfterDismissal = false
 
     var body: some View {
         @Bindable var accessory = accessory
@@ -79,7 +80,16 @@ struct AccessoryView: View {
         .navigationTitle("k-chain")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showSetup) { WiFiSetupView() }
-        .sheet(isPresented: $accessory.pairSheet) { KChainPairSheet() }
+        .sheet(isPresented: $accessory.pairSheet, onDismiss: {
+            guard retryAfterDismissal else { return }
+            retryAfterDismissal = false
+            accessory.useSaved(.relay)
+        }) {
+            KChainPairSheet {
+                retryAfterDismissal = true
+                accessory.pairSheet = false
+            }
+        }
         .sheet(isPresented: $showIntroduction, onDismiss: {
             guard discoverAfterDismissal else { return }
             discoverAfterDismissal = false

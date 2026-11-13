@@ -7,7 +7,7 @@ struct BeamFileDetail: View {
     @Environment(\.dismiss) private var dismiss
     @State private var operation: Task<Void, Never>?
     @State private var preview: URL?
-    private var key: String { "folder:" + file.name }
+    private var key: String { file.downloadKey }
     private var canPreview: Bool { file.size <= 32 * 1024 * 1024 }
 
     var body: some View {

@@ -1,10 +1,10 @@
 # k-hole for iOS
 
-Native SwiftUI app for your computer and physical k-chain. Includes Apple accessory selection, BLE Wi-Fi setup, Bluetooth byte relaying and desktop phone association. The iOS device build and simulator tests pass; physical-device and live-backend qualification remains outstanding. No WebView, external Swift packages, bundled credentials or simulated successful services are included. The original PWA remains unchanged in `../public/`.
+Native SwiftUI app for your computer and physical k-chain. Includes Apple accessory selection, BLE Wi-Fi setup, Bluetooth byte relaying and desktop phone association. Exact build/test evidence is recorded in the mobile PR; physical-device and live-backend qualification remains outstanding. No WebView, external Swift packages, bundled credentials or simulated successful services are included. The original PWA remains unchanged in `../public/`.
 
 ## Current mobile work
 
-[Mobile workflow foundation](../docs/MOBILE-WORKFLOWS.md) documents the five-tab navigation, guided accessory setup, lifecycle fixes, regression coverage and remaining PWA parity work. This branch follows PR #3 (`81e06ae`). Older evidence below describes earlier builds, not qualification of this branch.
+[Native mobile journeys](../docs/MOBILE-WORKFLOWS.md) documents draft continuity, complete shared-file browsing and preview, Assistant memory, guided accessory setup, lifecycle fixes and remaining PWA parity work. This branch follows PR #3 (`81e06ae`). Older evidence below describes earlier builds, not qualification of this branch.
 
 ## CI / IPA packaging
 
@@ -49,7 +49,8 @@ Regenerate the project with `python3 ios/generate_project.py` after adding/remov
 | Desktop connections | Saved HTTPS origins; phone/companion identities; PIN exchange; Keychain credentials; host switching; local forgetting |
 | Computer | Authenticated device status; full-control request; media, volume, focus, confirmed lock; server receipts |
 | Agent decisions | Current decision summary, explicit review/confirmation, allow/deny with exact IDs, stale-response handling |
-| Assistant | Tasks, attachments, history, questions, queue/steer, threads, executor selection and desktop approval handoff to native Remote |
+| Assistant | Tasks, bounded attachments, history, questions, queue/steer, threads, executor selection, read-only memory and desktop approval handoff to native Remote |
+| Files | Combined search/type filters, name/date/size sorting, list/grid, 60-item paging, details, native Quick Look, save/share |
 | Accessory selection | AccessorySetupKit with published service IDs; CoreBluetooth reconnect/restoration and GATT rediscovery |
 | Board Wi-Fi | Security 1 PoP, X25519/SHA256/AES-CTR, descriptor-based endpoints, scan/manual SSID, configure/apply/status, failed-network reset |
 | Bluetooth relay | Six bounded raw TCP streams, credit and Bluetooth backpressure, ordered targets, cancellation and stale-callback guards; board owns TLS/authentication |
@@ -57,7 +58,7 @@ Regenerate the project with `python3 ios/generate_project.py` after adding/remov
 | Activity | Last 60 desktop action responses in memory; not an OS audit log |
 | Native workspace | HTTPS/TLS/UDP Remote streaming, Beam transfers/shared files/clipboard, and full Agents conversations/commands/diffs use the selected computer connection |
 
-The native stream uses its dedicated UDP/TLS contract rather than WebRTC. Share extensions, Assistant memory, voice, push, widgets, native SoftAP/USB setup, SSID hints and firmware updates remain unimplemented. Assistant tasks, attachments, history and executor selection already have native implementations; see the workflow foundation for the remaining parity gaps. SoftAP/USB fallback is explained in the board setup screen. Optional SSID hints are omitted; no location or Wi-Fi-information entitlement is requested. Bluetooth relay needs actual network reachability to the board's advertised desktop targets; [OS #46](https://github.com/ka2ny/k-flow-os/issues/46) tracks away-from-home support.
+The native stream uses its dedicated UDP/TLS contract rather than WebRTC. Share extensions, voice, push, widgets, native SoftAP/USB setup, SSID hints and firmware updates remain unimplemented. Assistant tasks, attachments, history and executor selection already have native implementations; see the mobile journey notes for the remaining parity gaps. SoftAP/USB fallback is explained in the board setup screen. Optional SSID hints are omitted; no location or Wi-Fi-information entitlement is requested. Bluetooth relay needs actual network reachability to the board's advertised desktop targets; [OS #46](https://github.com/ka2ny/k-flow-os/issues/46) tracks away-from-home support.
 
 ## Security and lifecycle
 

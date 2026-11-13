@@ -28,4 +28,10 @@ struct SharedFileTests {
         #expect(files.first?.kind == .images)
         #expect(files.last?.kind == .video)
     }
+    @Test func updatedFilesDoNotReuseOldPreview() {
+        let before = SharedFile(name: "Brief.pdf", size: 300, at: 4, type: nil)
+        let after = SharedFile(name: "Brief.pdf", size: 300, at: 5, type: nil)
+        #expect(before.id == after.id)
+        #expect(before.downloadKey != after.downloadKey)
+    }
 }

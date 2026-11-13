@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Presented after the system picker. Progress follows actual protected board traffic.
 struct KChainPairSheet: View {
+    let retry: () -> Void
     @Environment(AccessoryModel.self) private var accessory
     @Environment(\.dismiss) private var dismiss
     private var verified: Bool { accessory.pairing.verified && accessory.error == nil }
@@ -41,7 +42,7 @@ struct KChainPairSheet: View {
                         if verified {
                             Button("Done") { dismiss() }.buttonStyle(QuietProminentStyle())
                         } else if accessory.error != nil {
-                            Button("Try again") { accessory.useSaved(.relay) }.buttonStyle(QuietProminentStyle())
+                            Button("Try again", action: retry).buttonStyle(QuietProminentStyle())
                             Button("Back to setup") { accessory.disconnect(); dismiss() }.buttonStyle(QuietSecondaryStyle())
                         } else {
                             Button("Cancel setup", role: .cancel) { accessory.disconnect(); dismiss() }.buttonStyle(QuietSecondaryStyle())

@@ -6,6 +6,8 @@ struct SharedFile: Decodable, Sendable, Identifiable, Equatable {
     let size: Int64
     let at: Int
     let type: String?
+    /// A replacement with the same name needs a fresh local copy and preview.
+    var downloadKey: String { "folder:\(name):\(at):\(size)" }
 
     var kind: FileKind {
         let mime = type?.lowercased() ?? ""

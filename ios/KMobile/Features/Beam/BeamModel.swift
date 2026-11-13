@@ -302,7 +302,7 @@ final class BeamModel {
     }
 
     func save(_ file: FolderFile) async {
-        await fetch(row: "folder:" + file.name, name: file.name,
+        await fetch(row: file.downloadKey, name: file.name,
                     path: Self.path("/beam/api/folder/file", ["name": file.name]))
     }
 
