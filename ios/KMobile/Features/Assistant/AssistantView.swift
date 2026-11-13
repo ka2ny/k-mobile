@@ -9,7 +9,9 @@ struct AssistantView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
     @State private var assistant: AssistantModel?
-    @State private var goal = ""
+    @Binding var goal: String
+    @State private var importTask: Task<Void, Never>?
+    @State private var memoryPersona: Ref?
     @State private var steerText = ""
     @State private var answerText: [String: String] = [:]
     @State private var picking = false
@@ -56,10 +58,12 @@ struct AssistantView: View {
         .onChange(of: model.selectedID) {
             assistant?.stop()
             assistant = nil
-            goal = ""
             steerText = ""
         }
-        .onDisappear { assistant?.stop() }
+        .onDisappear { importTask?.cancel(); assistant?.stop() }
+        .sheet(item: $memoryPersona) { ref in
+            if let a = assistant { AssistantMemoryView(assistant: a, persona: ref.id) }
+        }
         .sheet(item: $openChatRef) { ref in
             if let a = assistant { AssistantChatSheet(assistant: a, id: ref.id) }
         }
@@ -68,14 +72,12 @@ struct AssistantView: View {
         }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.image, .pdf, .plainText],
                       allowsMultipleSelection: true) { result in
-            guard case .success(let urls) = result, let a = assistant else { return }
-            Task {
-                for url in urls {
-                    let scoped = url.startAccessingSecurityScopedResource()
-                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                    guard let data = try? Data(contentsOf: url) else { continue }
-                    await a.attach(data, name: url.lastPathComponent)
-                }
+            guard let a = assistant else { return }
+            switch result {
+            case .success(let urls):
+                importTask?.cancel()
+                importTask = Task { await a.importFiles(urls) }
+            case .failure(let error): a.attachmentError(error)
             }
         }
     }
@@ -101,6 +103,12 @@ struct AssistantView: View {
                 composer(a)
                 if let s = a.summary { resultCard(s) }
             }
+            if let persona = a.chosenAssistant ?? a.defaultAssistant ?? a.assistants.first?.id {
+                Button { memoryPersona = Ref(id: persona) } label: {
+                    Label("What \(a.name(of: persona)) remembers", systemImage: "brain")
+                }.buttonStyle(QuietSecondaryStyle())
+            }
+            if !a.running, !a.goals.isEmpty { AssistantGoalsView(assistant: a) }
             historySection(a)
             threadsSection(a)
         }
@@ -133,13 +141,13 @@ struct AssistantView: View {
             HStack {
                 Button("Add a file", systemImage: "paperclip") { picking = true }
                     .buttonStyle(QuietSecondaryStyle())
-                    .disabled(a.busy.contains(.attach) || a.attachments.count >= AssistantModel.maxFiles)
+                    .disabled(a.importing || a.busy.contains(.composer) || a.busy.contains(.attach) || a.attachments.count >= AssistantModel.maxFiles)
                 Spacer(minLength: 0)
                 Button("Do it", systemImage: "arrow.up") {
-                    Task { if await a.startTask(text) { goal = "" } }
+                    Task { if await a.startTask(text), goal.trimmingCharacters(in: .whitespacesAndNewlines) == text { goal = "" } }
                 }
                 .buttonStyle(QuietProminentStyle())
-                .disabled(text.isEmpty || a.busy.contains(.composer))
+                .disabled(text.isEmpty || a.busy.contains(.composer) || a.busy.contains(.attach) || a.importing)
             }
             if a.busy.contains(.composer) { ProgressView("Sending to your computer…").font(.callout) }
             if let note = a.notes[.composer] { NoteLine(note: note) }
@@ -147,7 +155,7 @@ struct AssistantView: View {
     }
 
     @ViewBuilder private func attachments(_ a: AssistantModel) -> some View {
-        if !a.attachments.isEmpty || a.busy.contains(.attach) || a.notes[.attach] != nil {
+        if !a.attachments.isEmpty || a.importing || a.busy.contains(.attach) || a.notes[.attach] != nil {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(a.attachments) { f in
                     HStack {
@@ -158,8 +166,10 @@ struct AssistantView: View {
                         Spacer(minLength: 0)
                         Button("Remove \(f.name)", systemImage: "xmark") { Task { await a.unattach(f.id) } }
                             .labelStyle(.iconOnly).buttonStyle(.borderless)
+                            .disabled(a.importing || a.busy.contains(.attach) || a.busy.contains(.composer))
                     }
                 }
+                if a.importing && !a.busy.contains(.attach) { ProgressView("Preparing attachment…") }
                 if a.busy.contains(.attach) { ProgressView("Sending the file…").font(.callout) }
                 if let note = a.notes[.attach] { NoteLine(note: note) }
             }
@@ -221,7 +231,7 @@ struct AssistantView: View {
             if let why = c["why"]?.string, !why.isEmpty {
                 Text(why).font(.callout).foregroundStyle(Design.muted)
             }
-            Text("Allow is pressed on your computer, never from the phone.")
+            Text("Approve in the desktop Assistant window. Remote lets you reach that window from here.")
                 .font(.footnote).foregroundStyle(Design.muted)
             HStack {
                 Button("Don't", systemImage: "hand.raised", role: .destructive) { Task { await a.deny(id) } }
@@ -234,6 +244,11 @@ struct AssistantView: View {
                 .disabled(a.busy.contains(.confirm(id)))
             }
             if let note = a.notes[.confirm(id)] { NoteLine(note: note) }
+            if a.notes[.confirm(id)]?.fail == false {
+                NavigationLink { RemoteStreamView() } label: {
+                    MobileLabel("Open Remote", icon: .remote)
+                }.buttonStyle(QuietSecondaryStyle())
+            }
         }.quietCard()
     }
 
@@ -277,6 +292,11 @@ struct AssistantView: View {
             .buttonStyle(QuietProminentStyle())
             .disabled(a.busy.contains(.show))
             if let note = a.notes[.show] { NoteLine(note: note) }
+            if a.notes[.show]?.fail == false {
+                NavigationLink { RemoteStreamView() } label: {
+                    MobileLabel("Open Remote", icon: .remote)
+                }.buttonStyle(QuietSecondaryStyle())
+            }
         }.quietCard()
     }
 
@@ -338,8 +358,8 @@ struct AssistantView: View {
     private func resultCard(_ s: JSONValue) -> some View {
         VStack(alignment: .leading, spacing: Design.gap) {
             HStack(spacing: 8) {
-                Circle().fill(s["ok"]?.bool == false ? Design.caution : Design.success).frame(width: 8, height: 8)
-                Text(s["ok"]?.bool == false ? "It didn't finish" : "Last result").font(.headline)
+                Circle().fill(s["ok"]?.bool == false || s["reason"]?.string == "partial" ? Design.caution : Design.success).frame(width: 8, height: 8)
+                Text(s["reason"]?.string == "partial" ? "Partly completed" : s["ok"]?.bool == false ? "It didn't finish" : "Last result").font(.headline)
             }
             AnswerParts(answer: s["answer"], fallback: s["summary"]?.string ?? s["reason"]?.string ?? "")
         }.quietCard()
@@ -371,7 +391,7 @@ struct AssistantView: View {
                 let id = item["id"]?.string ?? ""
                 Button { openChatRef = Ref(id: id) } label: {
                     HStack(alignment: .top) {
-                        Circle().fill(item["ok"]?.bool == false ? Design.caution : Design.success)
+                        Circle().fill(item["ok"]?.bool == false || item["reason"]?.string == "partial" ? Design.caution : Design.success)
                             .frame(width: 8, height: 8).padding(.top, 6)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item["title"]?.string ?? item["goal"]?.string ?? "Task")
@@ -393,6 +413,7 @@ struct AssistantView: View {
 
     private func historyMeta(_ item: JSONValue) -> String {
         var parts: [String] = []
+        if item["reason"]?.string == "partial" { parts.append("Partly completed") }
         if let name = item["assistant_name"]?.string { parts.append(name) }
         if let turns = item["turns"]?.int, turns > 1 { parts.append("\(turns) turns") }
         if let steps = item["steps"]?.int { parts.append("\(steps) steps") }
@@ -455,7 +476,7 @@ struct AssistantView: View {
                 "Paused on your computer", "Remote services are paused. Resume them on your computer to use Assistant."
             )
         }
-        return ("Full control needed", "Approve full control for this device on your computer. You can ask from Home.")
+        return ("Full control needed", "Approve full control for this device on your computer. You can ask from Computer.")
     }
 }
 
@@ -516,13 +537,22 @@ struct AnswerParts: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(answer?["answer"]?.string ?? fallback).textSelection(.enabled)
             ForEach(Array(list("details").enumerated()), id: \.offset) { _, d in Text("• " + d).font(.callout) }
+            if let pick = answer?["pick"]?.string, !pick.isEmpty {
+                Text("Recommended: \(pick)").font(.callout.weight(.medium)).textSelection(.enabled)
+            }
+            if !list("unconfirmed").isEmpty {
+                Text("Not found in its sources").font(.callout.weight(.semibold))
+                ForEach(Array(list("unconfirmed").enumerated()), id: \.offset) { _, item in
+                    Text("• \(item)").font(.callout).foregroundStyle(Design.caution).textSelection(.enabled)
+                }
+            }
             if !list("not_done").isEmpty {
                 Text("Not done: " + list("not_done").joined(separator: "; ")).font(.callout)
                     .foregroundStyle(Design.muted)
             }
             if !list("sources").isEmpty {
                 Text("Read at " + list("sources").joined(separator: ", ")).font(.footnote)
-                    .foregroundStyle(Design.muted).lineLimit(3)
+                    .foregroundStyle(Design.muted).textSelection(.enabled)
             }
             if let words = answer?["answer"]?.string ?? Optional(fallback), !words.isEmpty {
                 Button("Copy the answer", systemImage: "doc.on.doc") { UIPasteboard.general.string = words }
@@ -552,6 +582,7 @@ private struct AssistantChatSheet: View {
                         ForEach(Array((chat["turns"]?.array ?? []).enumerated()), id: \.offset) { _, turn in
                             VStack(alignment: .leading, spacing: Design.gap) {
                                 Text(turn["goal"]?.string ?? "").font(.headline).textSelection(.enabled)
+                                if turn["reason"]?.string == "partial" { Text("Partly completed").font(.callout).foregroundStyle(Design.caution) }
                                 AnswerParts(answer: turn["answer"],
                                             fallback: turn["summary"]?.string ?? turn["reason"]?.string ?? "")
                             }.quietCard()

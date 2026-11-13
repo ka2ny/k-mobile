@@ -4,33 +4,20 @@ import SwiftUI
 /// decision card and composer, new sessions, changes and quick replies. Every result shows next
 /// to the control that asked for it (`AgentsModel.rowNote`, keyed per control).
 struct AgentsView: View {
-    @Environment(AppModel.self) private var model
-    @State private var agents: AgentsModel?
+    let agents: AgentsModel
     @State private var showNew = false
     @State private var showReplies = false
 
     var body: some View {
-        Group {
-            if let agents {
-                AgentsQueue(agents: agents, showNew: $showNew, showReplies: $showReplies)
-            } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
+        AgentsQueue(agents: agents, showNew: $showNew, showReplies: $showReplies)
         .background(Design.background)
         .navigationTitle("Agents")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: model.connectionGeneration) {
-            let current = agents ?? AgentsModel(app: model)
-            agents = current
-            current.start()
-        }
-        .onDisappear { agents?.stop() }
         .sheet(isPresented: $showNew) {
-            if let agents { NavigationStack { AgentNewSession(agents: agents) } }
+            NavigationStack { AgentNewSession(agents: agents) }
         }
         .sheet(isPresented: $showReplies) {
-            if let agents { NavigationStack { AgentRepliesEditor(agents: agents) } }
+            NavigationStack { AgentRepliesEditor(agents: agents) }
         }
     }
 }
@@ -44,14 +31,14 @@ private struct AgentsQueue: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Design.inset) {
+            LazyVStack(alignment: .leading, spacing: Design.inset) {
                 PageHeading(title: "Agents", detail: agents.loaded ? agents.summary : "Reading your sessions…",
                             eyebrow: agents.hostName.uppercased())
                 header
                 if agents.unpaired {
                     QuietEmptyState(
                         title: "Agents waits for full control",
-                        detail: "Ask for full control on Home, then approve it on your computer. This page updates by itself.",
+                        detail: "Ask for full control on Computer, then approve it on your computer. This page updates by itself.",
                         icon: .agents)
                 } else if let error = agents.listError, agents.rows.isEmpty {
                     QuietEmptyState(title: "Can't read your agents", detail: error, icon: .agents)

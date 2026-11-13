@@ -33,7 +33,9 @@ platform :ios do
       derived_data_path: File.join(ROOT, "build", "test-derived"),
       output_directory: File.join(ROOT, "build", "test-results"),
       result_bundle: true,
-      xcargs: "CODE_SIGNING_ALLOWED=NO",
+      # Xcode 27 can stall in simctl diagnose after tests have finished. Keep
+      # test results/attachments and runner logs, but skip the extra sysdiagnose.
+      xcargs: "CODE_SIGNING_ALLOWED=NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance 180 -collect-test-diagnostics never",
       xcodebuild_formatter: ""
     )
   end

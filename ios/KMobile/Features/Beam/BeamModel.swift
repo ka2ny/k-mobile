@@ -19,7 +19,7 @@ final class BeamModel {
     struct InboxItem: Decodable, Sendable, Identifiable {
         let id: String; let at: Int; let state: String?; let total: Int64?; let files: [InboxFile]; let text: String?; let until: Int?
     }
-    struct FolderFile: Decodable, Sendable, Identifiable { var id: String { name }; let name: String; let size: Int64; let at: Int; let type: String? }
+    typealias FolderFile = SharedFile
     private struct Inbox: Decodable, Sendable { let ok: Bool; let items: [InboxItem] }
     private struct Folder: Decodable, Sendable { let ok: Bool; let on: Bool; let name: String?; let files: [FolderFile]? }
     private struct Clip: Decodable, Sendable { let ok: Bool; let text: String? }
@@ -56,6 +56,7 @@ final class BeamModel {
     /// Per row (inbox file id or folder file name): its own line, and a saved copy to share.
     private(set) var rowNote: [String: String] = [:]
     private(set) var saved: [String: URL] = [:]
+    private(set) var savedSizes: [String: Int64] = [:]
     private(set) var busyRows: Set<String> = []
     private(set) var loading = false
 
@@ -63,8 +64,28 @@ final class BeamModel {
     private var askID: String?
     private var sessionID: String?
     private var sendTask: Task<Void, Never>?
+    private var sendAttempt = UUID()
 
-    init(app: AppModel) { self.app = app }
+    private let originGateway: GatewayClient?
+    private let originGeneration: UUID
+    private var active = true
+    private var gateway: GatewayClient? { active && app.connectionGeneration == originGeneration ? originGateway : nil }
+
+    init(app: AppModel, gateway: GatewayClient? = nil) {
+        self.app = app
+        self.originGateway = gateway ?? app.gateway
+        self.originGeneration = app.connectionGeneration
+    }
+
+    func stop() {
+        if sending { stopSending() }
+        active = false
+    }
+
+    private func checkContext() throws {
+        try Task.checkCancellation()
+        guard gateway != nil else { throw CancellationError() }
+    }
 
     var sending: Bool {
         switch sendState { case .asking, .sending: true; default: false }
@@ -74,7 +95,8 @@ final class BeamModel {
     // MARK: - Reading
 
     func refresh() async {
-        guard let gateway = app.gateway else {
+        guard !loading else { return }
+        guard let gateway = gateway else {
             meError = "Connect to your computer to use k-beam."
             return
         }
@@ -83,22 +105,22 @@ final class BeamModel {
         defer { loading = false }
         do {
             let me = try await gateway.get("/beam/api/me", as: Me.self)
-            guard generation == app.connectionGeneration else { return }
+            guard generation == app.connectionGeneration, active, !Task.isCancelled else { return }
             self.me = me
             meError = nil
         } catch {
-            guard generation == app.connectionGeneration else { return }
-            me = nil
+            guard generation == app.connectionGeneration, active, !Task.isCancelled else { return }
+            me = nil; inbox = []; folder = []; folderOn = false
             meError = Self.words(error, off: "k-beam is off on your computer. Turn it on in Settings → k-beam.")
             return
         }
         do {
             let box = try await gateway.get("/beam/api/inbox", as: Inbox.self)
-            guard generation == app.connectionGeneration else { return }
+            guard generation == app.connectionGeneration, active, !Task.isCancelled else { return }
             inbox = box.items.filter { $0.state != "done" }
             inboxError = nil
         } catch {
-            guard generation == app.connectionGeneration else { return }
+            guard generation == app.connectionGeneration, active, !Task.isCancelled else { return }
             inboxError = Self.words(error)
         }
         guard me?.folder == true else {
@@ -107,36 +129,44 @@ final class BeamModel {
         }
         do {
             let shared = try await gateway.get("/beam/api/folder", as: Folder.self)
-            guard generation == app.connectionGeneration else { return }
+            guard generation == app.connectionGeneration, active, !Task.isCancelled else { return }
             folderOn = shared.on
             folderName = shared.name ?? "k-beam"
             folder = shared.files ?? []
             folderError = nil
         } catch {
-            guard generation == app.connectionGeneration else { return }
+            guard generation == app.connectionGeneration, active, !Task.isCancelled else { return }
             folderError = Self.words(error)
         }
     }
 
     // MARK: - Sending
 
-    func send(text: String) {
+    func send(text: String, onSent: @escaping @MainActor () -> Void = {}) {
         let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !words.isEmpty else { sendState = .failed("Type something to send first."); return }
-        start { try await self.sendText(words) }
+        start {
+            try await self.sendText(words)
+            try self.checkContext()
+            onSent()
+        }
     }
 
     func send(files: [Outgoing], toFolder: Bool = false) {
         guard !files.isEmpty else { return }
-        start { try await self.sendFiles(files, toFolder: toFolder) }
+        guard !sending, gateway != nil else { BeamImport.remove(files); return }
+        start(cleanup: { BeamImport.remove(files) }) {
+            try await self.sendFiles(files, toFolder: toFolder)
+        }
     }
 
     func stopSending() {
+        sendAttempt = UUID()
         sendTask?.cancel()
-        guard let gateway = app.gateway else { sendState = .idle; return }
+        guard let gateway = originGateway else { sendState = .idle; return }
         let ask = askID, session = sessionID
         askID = nil; sessionID = nil
-        sendState = .failed("Stopped. Nothing more was sent.")
+        sendState = .failed("Stopped sending. Check the computer for anything that already arrived.")
         Task {
             if let ask { _ = try? await gateway.post(Self.path("/beam/api/cancel", ["ask": ask]), body: [:], as: OK.self) }
             if let session {
@@ -145,34 +175,39 @@ final class BeamModel {
         }
     }
 
-    private func start(_ work: @escaping @MainActor () async throws -> Void) {
+    private func start(cleanup: @escaping @MainActor () -> Void = {}, _ work: @escaping @MainActor () async throws -> Void) {
         guard !sending else { return }
-        guard app.gateway != nil else { sendState = .failed("Connect to your computer first."); return }
+        guard gateway != nil else { sendState = .failed("Connect to your computer first."); return }
+        sendState = .asking(seconds: 0)
+        let current = UUID()
+        sendAttempt = current
         sendTask = Task {
-            do { try await work() } catch is CancellationError {
+            defer { cleanup() }
+            do { try checkContext(); try await work() } catch is CancellationError {
                 // stopSending already said so.
             } catch {
-                if Task.isCancelled { return }
+                if Task.isCancelled || gateway == nil { return }
                 sendState = .failed(Self.words(error))
                 app.recordActivity("k-beam", "Send failed: \(Self.words(error))", failed: true)
             }
-            askID = nil; sessionID = nil
+            if current == sendAttempt { askID = nil; sessionID = nil }
         }
     }
 
     private func sendText(_ text: String) async throws {
-        guard let gateway = app.gateway else { throw GatewayError.missingCredential }
+        guard let gateway = gateway else { throw GatewayError.missingCredential }
         sendState = .asking(seconds: 0)
         struct Body: Encodable { let text: String; let wait: Bool }
         var answer = try await gateway.send("/beam/api/prepare", json: Body(text: text, wait: false), as: Prepared.self)
         answer = try await waitForAnswer(answer, gateway: gateway)
+        try checkContext()
         guard answer.done == true else { throw GatewayError.invalidResponse }
         sendState = .sent("Sent to \(me?.name ?? "your computer"). It's on its clipboard.")
         app.recordActivity("k-beam", "Sent text to \(me?.name ?? "your computer")")
     }
 
     private func sendFiles(_ files: [Outgoing], toFolder: Bool) async throws {
-        guard let gateway = app.gateway else { throw GatewayError.missingCredential }
+        guard let gateway = gateway else { throw GatewayError.missingCredential }
         struct File: Encodable { let name: String; let size: Int64; let type: String }
         struct Body: Encodable { let files: [File]; let wait: Bool; let to: String? }
         let total = files.reduce(Int64(0)) { $0 + $1.size }
@@ -190,13 +225,14 @@ final class BeamModel {
         var before: Int64 = 0
         sendState = .sending(done: 0, total: total)
         for (file, slot) in zip(files, slots) {
-            try Task.checkCancellation()
+            try checkContext()
             let query = ["session": session, "file": slot.id, "token": slot.token]
             var have: Int64 = 0
             for attempt in 0..<4 {
-                try Task.checkCancellation()
+                try checkContext()
                 do {
                     let state = try await gateway.get(Self.path("/beam/api/upload", query), as: UploadState.self)
+                    try checkContext()
                     have = state.have
                     if state.done { break }
                     sendState = .sending(done: before + have, total: total)
@@ -204,6 +240,7 @@ final class BeamModel {
                     withOffset["offset"] = String(have)
                     _ = try await gateway.uploadFile(Self.path("/beam/api/upload", withOffset), file: file.url,
                                                      from: have, as: OK.self)
+                    try checkContext()
                     have = file.size
                     break
                 } catch let error as URLError where attempt < 3 {
@@ -224,13 +261,15 @@ final class BeamModel {
 
     /// Waits for the computer's Accept card when the share has to ask; long-polls 25 s at a time.
     private func waitForAnswer(_ first: Prepared, gateway: GatewayClient) async throws -> Prepared {
+        try checkContext()
         var answer = first
         guard let ask = first.ask else { return first }
         askID = ask
         sendState = .asking(seconds: first.seconds ?? 0)
         while true {
-            try Task.checkCancellation()
+            try checkContext()
             answer = try await gateway.wait(Self.path("/beam/api/ask", ["id": ask, "wait": "25"]), as: Prepared.self)
+            try checkContext()
             if answer.state == "waiting" {
                 sendState = .asking(seconds: answer.seconds ?? 0)
                 continue
@@ -246,16 +285,17 @@ final class BeamModel {
         await fetch(row: file.id, name: file.name,
                     path: "/beam/api/inbox/\(Self.segment(item.id))/\(Self.segment(file.id))")
         // Every file of the share taken: tell the computer it can let the share go.
-        if let gateway = app.gateway,
+        if let gateway = gateway,
            item.files.allSatisfy({ $0.taken == true || saved[$0.id] != nil }) {
             _ = try? await gateway.post("/beam/api/inbox/\(Self.segment(item.id))/done", body: [:], as: OK.self)
         }
     }
 
     func dismiss(_ item: InboxItem) async {
-        guard let gateway = app.gateway else { return }
+        guard let gateway = gateway else { return }
         do {
             _ = try await gateway.post("/beam/api/inbox/\(Self.segment(item.id))/done", body: [:], as: OK.self)
+            try checkContext()
             inbox.removeAll { $0.id == item.id }
         } catch {
             rowNote[item.id] = Self.words(error)
@@ -263,36 +303,44 @@ final class BeamModel {
     }
 
     func save(_ file: FolderFile) async {
-        await fetch(row: "folder:" + file.name, name: file.name,
+        await fetch(row: file.downloadKey, name: file.name,
                     path: Self.path("/beam/api/folder/file", ["name": file.name]))
     }
 
     private func fetch(row: String, name: String, path: String) async {
-        guard let gateway = app.gateway else { rowNote[row] = "Connect to your computer first."; return }
+        guard let gateway = gateway else { rowNote[row] = "Connect to your computer first."; return }
+        guard !busyRows.contains(row) else { return }
         busyRows.insert(row)
         rowNote[row] = "Downloading…"
         defer { busyRows.remove(row) }
         do {
             let temp = try await gateway.download(path)
+            guard gateway === self.gateway, !Task.isCancelled else {
+                try? FileManager.default.removeItem(at: temp)
+                return
+            }
             let folder = try Self.receivedFolder()
             let target = Self.unique(folder.appending(path: Self.safeName(name)))
             try FileManager.default.moveItem(at: temp, to: target)
+            savedSizes[row] = (try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init)
             saved[row] = target
             rowNote[row] = "Saved in Files → k-hole → Received."
             app.recordActivity("k-beam", "Received “\(target.lastPathComponent)”")
         } catch {
-            rowNote[row] = Self.words(error)
+            guard self.gateway != nil else { return }
+            rowNote[row] = Task.isCancelled ? "Download cancelled." : Self.words(error)
         }
     }
 
     // MARK: - Clipboard
 
     func readClipboard() async {
-        guard let gateway = app.gateway else { clipNote = "Connect to your computer first."; return }
+        guard let gateway = gateway else { clipNote = "Connect to your computer first."; return }
         clipNote = "Reading the computer's clipboard…"
         clipText = nil
         do {
             let clip = try await gateway.get("/beam/api/clipboard", as: Clip.self)
+            try checkContext()
             clipText = clip.text
             clipNote = (clip.text ?? "").isEmpty ? "The computer's clipboard is empty." : nil
         } catch GatewayError.http(403, let message) {

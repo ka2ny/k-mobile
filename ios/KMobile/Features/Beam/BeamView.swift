@@ -8,17 +8,29 @@ struct BeamView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.mobileAccent) private var accent
     @State private var beam: BeamModel?
-    @State private var words = ""
+    @Binding var words: String
     @State private var toFolder = false
     @State private var picking = false
     @State private var photos: [PhotosPickerItem] = []
     @State private var pickNote: String?
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var textSize
+    @State private var section = Section.send
+    @State private var importTask: Task<Void, Never>?
+    @State private var importing = false
+    private enum Section: String, CaseIterable, Identifiable {
+        case send = "Send", inbox = "Inbox", files = "Files", clipboard = "Clipboard"
+        var id: Self { self }
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Design.gap) {
+            LazyVStack(alignment: .leading, spacing: Design.gap) {
                 PageHeading(
-                    title: "k-beam", detail: "Send words and files to your computer, and take what it sends you.")
+                    title: "Beam", detail: "Move something between your phone and computer.")
+                Picker("Beam workspace", selection: $section) {
+                    ForEach(Section.allCases) { section in Text(section.rawValue).tag(section) }
+                }.pickerStyle(.segmented)
                 if let beam {
                     content(beam)
                 } else {
@@ -28,17 +40,20 @@ struct BeamView: View {
             .quietPage().quietEntrance()
         }
         .background(Design.background)
-        .navigationTitle("k-beam")
+        .navigationTitle("Beam")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await beam?.refresh() }
-        .task(id: model.connectionGeneration) {
-            let current = beam ?? BeamModel(app: model)
+        .task(id: "\(model.connectionGeneration)-\(scenePhase)") {
+            beam?.stop()
+            guard scenePhase == .active else { return }
+            let current = BeamModel(app: model)
             beam = current
             while !Task.isCancelled {
                 await current.refresh()
-                try? await Task.sleep(for: .seconds(5))
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
             }
         }
+        .onDisappear { importTask?.cancel(); beam?.stop() }
         .fileImporter(isPresented: $picking, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             switch result {
             case .success(let urls): sendFiles(urls)
@@ -47,7 +62,8 @@ struct BeamView: View {
         }
         .onChange(of: photos) { _, items in
             guard !items.isEmpty else { return }
-            Task { await sendPhotos(items) }
+            importTask?.cancel()
+            importTask = Task { await sendPhotos(items) }
         }
     }
 
@@ -55,38 +71,47 @@ struct BeamView: View {
         if let error = beam.meError {
             QuietEmptyState(title: "k-beam isn't reachable", detail: error, icon: .beam)
         }
-        sendCard(beam)
-        inboxCard(beam)
-        if beam.folderOn { folderCard(beam) }
-        clipboardCard(beam)
+        switch section {
+        case .send: sendCard(beam)
+        case .inbox: inboxCard(beam)
+        case .files:
+            if beam.folderOn { folderCard(beam) }
+            else {
+                QuietEmptyState(title: "Your shared folder", detail: "Enable the shared folder in Settings → k-beam on your computer. Files placed there will appear here.", icon: .files)
+            }
+        case .clipboard: clipboardCard(beam)
+        }
     }
 
     // MARK: Send
 
     private func sendCard(_ beam: BeamModel) -> some View {
-        VStack(alignment: .leading, spacing: Design.gap) {
+        let layout = textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+        return VStack(alignment: .leading, spacing: Design.gap) {
             MobileLabel("Send to \(beam.me?.name ?? "your computer")", icon: .beam).font(.headline)
             TextField("Words, a link, a code…", text: $words, axis: .vertical)
                 .lineLimit(1...6)
                 .padding(12)
                 .background(Design.surface, in: RoundedRectangle(cornerRadius: Design.controlRadius))
-                .disabled(beam.sending)
-            HStack(spacing: 12) {
+                .disabled(beam.sending || importing)
+            layout {
                 Button("Send text") {
-                    beam.send(text: words)
-                    words = ""
+                    let submitted = words
+                    beam.send(text: submitted) {
+                        if words == submitted { words = "" }
+                    }
                 }
                 .buttonStyle(QuietProminentStyle())
-                .disabled(beam.sending || words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(beam.sending || importing || words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 PhotosPicker(selection: $photos, maxSelectionCount: 20, matching: .any(of: [.images, .videos])) {
                     Text("Photos")
                 }
-                .buttonStyle(QuietSecondaryStyle()).disabled(beam.sending)
+                .buttonStyle(QuietSecondaryStyle()).disabled(beam.sending || importing)
                 Button("Files") { pickNote = nil; picking = true }
-                    .buttonStyle(QuietSecondaryStyle()).disabled(beam.sending)
+                    .buttonStyle(QuietSecondaryStyle()).disabled(beam.sending || importing)
             }
             if beam.folderOn {
-                Toggle("Into the shared folder “\(beam.folderName)”", isOn: $toFolder).disabled(beam.sending)
+                Toggle("Into the shared folder “\(beam.folderName)”", isOn: $toFolder).disabled(beam.sending || importing)
             }
             if beam.trusted {
                 Text("This phone is trusted: what you send arrives without a question.")
@@ -94,6 +119,10 @@ struct BeamView: View {
             } else {
                 Text("The computer asks before anything from this phone lands.")
                     .font(.footnote).foregroundStyle(Design.muted)
+            }
+            if importing {
+                ProgressView("Preparing files…")
+                Button("Cancel import", role: .cancel) { importTask?.cancel() }
             }
             sendLine(beam)
             if let pickNote { note(pickNote, failed: true) }
@@ -194,38 +223,7 @@ struct BeamView: View {
 
     // MARK: Folder
 
-    private func folderCard(_ beam: BeamModel) -> some View {
-        VStack(alignment: .leading, spacing: Design.gap) {
-            Text("Shared folder “\(beam.folderName)”").font(.headline).accessibilityAddTraits(.isHeader)
-            if let error = beam.folderError { note(error, failed: true) }
-            if beam.folder.isEmpty && beam.folderError == nil {
-                Text("Empty. Files you put in it on the computer show here.")
-                    .font(.callout).foregroundStyle(Design.muted)
-            }
-            ForEach(beam.folder) { file in
-                let key = "folder:" + file.name
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "folder").foregroundStyle(accent).accessibilityHidden(true)
-                        VStack(alignment: .leading) {
-                            Text(file.name).lineLimit(2)
-                            Text(BeamView.size(file.size)).font(.footnote).foregroundStyle(Design.muted)
-                        }
-                        Spacer(minLength: 0)
-                        if beam.busyRows.contains(key) {
-                            ProgressView()
-                        } else if let url = beam.saved[key] {
-                            ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }
-                                .accessibilityLabel("Share \(file.name)")
-                        } else {
-                            Button("Save") { Task { await beam.save(file) } }.buttonStyle(QuietSecondaryStyle())
-                        }
-                    }
-                    if let line = beam.rowNote[key] { note(line, failed: beam.saved[key] == nil) }
-                }
-            }
-        }.quietCard()
-    }
+    private func folderCard(_ beam: BeamModel) -> some View { BeamFilesView(beam: beam) }
 
     // MARK: Clipboard
 
@@ -263,59 +261,46 @@ struct BeamView: View {
     }
 
     private func sendFiles(_ urls: [URL]) {
-        guard let beam else { return }
-        var outgoing: [BeamModel.Outgoing] = []
-        for url in urls {
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let beam, !importing, !beam.sending else { return }
+        let destination = toFolder
+        importTask = Task {
+            importing = true
+            defer { importing = false }
             do {
-                let copy = try BeamView.copyToTemporary(url, name: url.lastPathComponent)
-                outgoing.append(copy)
-            } catch {
-                pickNote = "Couldn't read “\(url.lastPathComponent)”: \(error.localizedDescription)"
-                return
-            }
+                let worker = Task.detached { try BeamImport.copyFiles(urls) }
+                let outgoing = try await withTaskCancellationHandler {
+                    try await worker.value
+                } onCancel: { worker.cancel() }
+                guard !Task.isCancelled else { BeamImport.remove(outgoing); return }
+                pickNote = nil
+                beam.send(files: outgoing, toFolder: destination)
+            } catch { if !Task.isCancelled { pickNote = "Couldn't read those files: \(error.localizedDescription)" } }
         }
-        guard !outgoing.isEmpty else { return }
-        pickNote = nil
-        beam.send(files: outgoing, toFolder: toFolder)
     }
 
     private func sendPhotos(_ items: [PhotosPickerItem]) async {
-        defer { photos = [] }
-        guard let beam else { return }
+        guard let beam, !importing, !beam.sending else { return }
+        let destination = toFolder
+        importing = true
         var outgoing: [BeamModel.Outgoing] = []
-        for (n, item) in items.enumerated() {
-            do {
-                guard let data = try await item.loadTransferable(type: Data.self) else {
-                    pickNote = "One of those photos couldn't be read."
-                    return
-                }
-                let type = item.supportedContentTypes.first
-                let ext = type?.preferredFilenameExtension ?? "jpg"
-                let name = "Photo \(n + 1).\(ext)"
-                let url = FileManager.default.temporaryDirectory.appending(path: "beam-" + UUID().uuidString + "." + ext)
-                try data.write(to: url, options: [.atomic, .completeFileProtection])
-                outgoing.append(.init(
-                    name: name, url: url, size: Int64(data.count),
-                    type: type?.preferredMIMEType ?? "application/octet-stream"))
-            } catch {
-                pickNote = "Couldn't read a photo: \(error.localizedDescription)"
-                return
-            }
+        var handedOff = false
+        defer {
+            importing = false; photos = []
+            if !handedOff { BeamImport.remove(outgoing) }
         }
-        pickNote = nil
-        beam.send(files: outgoing, toFolder: toFolder)
-    }
-
-    /// The picker's URL lives only while it is open: copy the file out first.
-    nonisolated static func copyToTemporary(_ url: URL, name: String) throws -> BeamModel.Outgoing {
-        let target = FileManager.default.temporaryDirectory.appending(path: "beam-" + UUID().uuidString)
-            .appendingPathExtension(url.pathExtension)
-        try FileManager.default.copyItem(at: url, to: target)
-        let size = (try FileManager.default.attributesOfItem(atPath: target.path)[.size] as? NSNumber)?.int64Value ?? 0
-        let type = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        return .init(name: name, url: target, size: size, type: type)
+        do {
+            for item in items {
+                try Task.checkCancellation()
+                guard let imported = try await item.loadTransferable(type: BeamImport.self) else {
+                    throw CocoaError(.fileReadUnknown)
+                }
+                outgoing.append(imported.file)
+                try Task.checkCancellation()
+            }
+            pickNote = nil
+            handedOff = true
+            beam.send(files: outgoing, toFolder: destination)
+        } catch { if !Task.isCancelled { pickNote = "Couldn't import media: \(error.localizedDescription)" } }
     }
 
     nonisolated static func size(_ bytes: Int64) -> String {

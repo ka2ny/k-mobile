@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import UIKit
+import SwiftUI
 @preconcurrency import AccessorySetupKit
 @preconcurrency import CoreBluetooth
 
@@ -23,6 +24,8 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     private(set) var networks: [ProvisioningMessages.Network] = []
     private(set) var joinedAddress: String?
     private(set) var savedRelay = false
+    private(set) var pairing = AccessoryPairingState()
+    private(set) var firmwareVersion: String?
     /// True from the moment a board is chosen in the system picker until the person closes the pairing sheet.
     var pairSheet = false
     var error: String?
@@ -78,6 +81,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         reconnectAttempts = min(reconnectAttempts + 1, 6)
         let delay = min(30, 1 << (reconnectAttempts - 1))
         status = "Board disconnected. Reconnecting shortly…"
+        pairing.connect()
         reconnectTask = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(delay)) } catch { return }
             guard let self, self.relayEnabled else { return }
@@ -92,7 +96,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         case .accessoryAdded, .accessoryChanged:
             guard pendingPicker, let accessory = event.accessory, let id = accessory.bluetoothIdentifier else { return }
             pendingPicker = false
-            selected(id: id, name: accessory.displayName)
+            selected(id: id, name: accessory.displayName, inSystemPicker: true)
         case .accessoryRemoved:
             // Compare against the saved accessory, never nil == nil while nothing is connected.
             guard let removed = event.accessory?.bluetoothIdentifier else { break }
@@ -101,6 +105,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
                 error = "Accessory access was removed in Settings."
             } else if removed == wantedID { disconnect() }
         case .pickerDidDismiss:
+            if mode == .relay, pairing.pickerDismissed() { pairSheet = true }
             // A dismissal without a selection leaves nothing to wait for.
             if pendingPicker { pendingPicker = false; status = savedRelay ? "Disconnected" : "Your k-chain, close at hand." }
         case .invalidated:
@@ -117,6 +122,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         guard !working else { return }
         disconnect()
         mode = nextMode
+        if mode == .relay { pairing.discover() }
         error = nil; joinedAddress = nil
         pendingPicker = true
         if activated { showPicker() } else { activateSession() }
@@ -125,7 +131,9 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         let descriptor = ASDiscoveryDescriptor()
         descriptor.bluetoothServiceUUID = mode == .relay ? Self.relayService : Self.setupService
         descriptor.bluetoothNameSubstring = "k-chain-"
-        guard let image = UIImage(named: "KChainPicker") else { error = "The k-chain picture is missing from this build, so the system picker can't open. Reinstall the app."; return }
+        let renderer = ImageRenderer(content: KChainDeviceView(face: .pair).frame(width: 280, height: 325))
+        renderer.scale = 2
+        guard let image = renderer.uiImage else { error = "The accessory picker couldn't open. Try again."; return }
         let item = ASPickerDisplayItem(name: "k-chain", productImage: image, descriptor: descriptor)
         pendingPicker = true
         let current = epoch
@@ -155,7 +163,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             }
         }
     }
-    private func selected(id: UUID, name: String) {
+    private func selected(id: UUID, name: String, inSystemPicker: Bool = false) {
         wantedID = id; self.name = name
         if mode == .relay {
             relayEnabled = true; savedRelay = true
@@ -163,7 +171,10 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             UserDefaults.standard.set(true, forKey: "accessory.relay.enabled")
         }
         status = "Connecting to \(name)…"
-        if mode == .relay { pairSheet = true }
+        if mode == .relay {
+            pairing.selected(inSystemPicker: inSystemPicker)
+            if !inSystemPicker { pairSheet = true }
+        }
         startCentral()
         connectKnown()
     }
@@ -180,6 +191,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
             return
         }
         peripheral = found; found.delegate = self
+        if mode == .relay { pairing.connect() }
         central.connect(found)
         if mode == .setup { armTimeout("The board did not enter Wi-Fi setup. Open Wi-Fi setup on the board and try again.") }
         else { status = "Waiting for your k-chain…" }
@@ -197,6 +209,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         }
         peripheral = nil
         resetTransport()
+        pairing.cancel()
         status = "Disconnected"
     }
     /// Wait for the old link's disconnect callback before reconnecting the same board, but never indefinitely:
@@ -243,6 +256,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         finishReply(.failure(CancellationError()))
         relay?.stop(); relay = nil
         security = nil; setupAuthenticated = false; ready = false; requiresReset = false
+        pairing.transportReset(); firmwareVersion = nil
         rx = nil; tx = nil; activeService = nil; endpoints.removeAll(); networks.removeAll(); streams = 0
     }
     private func fail(_ message: String) {
@@ -298,6 +312,7 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         reconnectTask?.cancel(); reconnectAttempts = 0
         resetTransport()
         armTimeout("The board did not finish connecting. Confirm the pairing numbers on both devices and try again.")
+        if mode == .relay { pairing.connect() }
         peripheral.discoverServices([mode == .relay ? Self.relayService : Self.setupService])
     }
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
@@ -371,8 +386,9 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         guard self.peripheral === peripheral, characteristic === tx else { return }
         guard error == nil, characteristic.isNotifying else { fail(error?.localizedDescription ?? "Bluetooth notifications were rejected."); return }
-        timeout?.cancel(); ready = true
-        status = "Bluetooth connected. Waiting for board traffic…"
+        ready = true
+        pairing.subscribed()
+        if !pairing.verified { status = "Confirm the matching numbers on iPhone and k-chain." }
         // Subscription is not evidence that SMP bonding succeeded. Never label this state "Paired".
     }
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
@@ -387,18 +403,25 @@ final class AccessoryModel: NSObject, @preconcurrency CBCentralManagerDelegate, 
         if let error { fail(error.localizedDescription); return }
         guard let data = characteristic.value else { fail("Empty Bluetooth response."); return }
         if characteristic.uuid == Self.infoID {
-            struct Info: Decodable { let v: Int; let window: Int; let streams: Int; let mtu: Int }
+            struct Info: Decodable { let v: Int; let window: Int; let streams: Int; let mtu: Int; let fw: String? }
             guard let info = try? JSONDecoder().decode(Info.self, from: data), info.v == 0, info.window == 8192,
                   info.streams == 6, info.mtu == 256, let tx else { fail("Unsupported board relay version."); return }
+            firmwareVersion = info.fw
             relay = PhoneRelay(maximumWrite: peripheral.maximumWriteValueLength(for: .withoutResponse), send: { [weak self] data in
                 guard let self, let peripheral = self.peripheral, let rx = self.rx,
                       peripheral.state == .connected, peripheral.canSendWriteWithoutResponse else { return false }
                 peripheral.writeValue(data, for: rx, type: .withoutResponse)
                 return true
+            }, verified: { [weak self] in
+                guard let self, !self.pairing.verified else { return }
+                self.pairing.receivedProtectedOpen()
+                self.timeout?.cancel()
+                self.status = "Bluetooth verified. Waiting for a relay connection…"
             }, changed: { [weak self] count in
                 guard let self, self.streams != count else { return }
                 self.streams = count
-                self.status = count > 0 ? "Relay connected" : "Waiting for board traffic…"
+                self.pairing.connections(count)
+                self.status = count > 0 ? "Relay active" : "Bluetooth verified. Waiting for a relay connection…"
             }, failed: { [weak self] message in self?.fail(message) })
             peripheral.setNotifyValue(true, for: tx)
         } else if characteristic === tx { relay?.receive(data) }

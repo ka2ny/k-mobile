@@ -2,49 +2,55 @@ import SwiftUI
 
 struct AccessoryView: View {
     @Environment(AccessoryModel.self) private var accessory
+    @Environment(\.dynamicTypeSize) private var textSize
     @State private var showSetup = false
     @State private var confirmForget = false
+    @State private var showIntroduction = false
+    @State private var discoverAfterDismissal = false
+    @State private var retryAfterDismissal = false
 
     var body: some View {
         @Bindable var accessory = accessory
         List {
             Group {
                 Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        KChainDeviceView(face: accessory.face)
-                            .frame(maxWidth: 220, maxHeight: 255)
-                            .frame(maxWidth: .infinity)
-                        Text(accessory.name ?? "Your k-chain")
-                            .font(.title.weight(.medium)).fixedSize(horizontal: false, vertical: true)
-                        Text(accessory.status).foregroundStyle(Design.muted)
-                        if accessory.streams > 0 {
-                            Label(
-                                accessory.streams == 1
-                                    ? "1 active connection" : "\(accessory.streams) active connections",
-                                systemImage: "lock.shield")
+                    HStack(alignment: .center, spacing: 20) {
+                        if !textSize.isAccessibilitySize {
+                            KChainDeviceView(face: accessory.face)
+                                .frame(width: 86, height: 100).accessibilityHidden(true)
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(accessory.name ?? "Your k-chain").font(.title2.weight(.semibold))
+                            Text(accessory.pairing.verified ? "Bluetooth connected" : accessory.savedRelay ? "Ready to reconnect" : "Make it yours")
+                                .font(.subheadline).foregroundStyle(Design.muted)
+                            if let firmware = accessory.firmwareVersion {
+                                Text("Firmware \(firmware)").font(.footnote).foregroundStyle(Design.muted)
+                            }
                         }
                     }.padding(.vertical, 12)
+                    if accessory.savedRelay {
+                        LabeledContent("Phone relay", value: accessory.streams > 0 ? "Active" : accessory.pairing.verified ? "Standing by" : "Disconnected")
+                        Text(accessory.status).font(.callout).foregroundStyle(Design.muted)
+                    }
                 }
                 Section {
                     Button(
                         accessory.savedRelay ? "Reconnect k-chain" : "Pair your k-chain",
                         systemImage: "antenna.radiowaves.left.and.right"
                     ) {
-                        if accessory.savedRelay { accessory.useSaved(.relay) } else { accessory.choose(.relay) }
+                        if accessory.savedRelay { accessory.useSaved(.relay) } else { showIntroduction = true }
                     }.disabled(accessory.working)
                     // The result of pairing sits under the button that started it.
                     if let error = accessory.error { PairingNote(text: error) }
                     if accessory.savedRelay {
-                        Button("Choose another k-chain", systemImage: "plus") { accessory.choose(.relay) }.disabled(
+                        Button("Choose another k-chain", systemImage: "plus") { showIntroduction = true }.disabled(
                             accessory.working)
                         Button("Disconnect", systemImage: "pause.circle") { accessory.disconnect() }
                     }
                 } header: {
                     Text("Bluetooth companion")
                 } footer: {
-                    Text(
-                        "On the board, open Settings → Bluetooth → Pair a phone. Confirm the same numbers on both screens. Your phone carries the board’s encrypted traffic to your computer when needed. Keep the app open for the most reliable connection."
-                    )
+                    Text("Pair once to let k-chain use your phone’s network. Keep k-mobile open while the relay is in use.")
                 }
                 Section {
                     Button("Set up board Wi-Fi", systemImage: "wifi") {
@@ -58,9 +64,7 @@ struct AccessoryView: View {
                         MobileLabel("Link phone on your computer", icon: .computer)
                     }
                 } footer: {
-                    Text(
-                        "Wi-Fi setup, Bluetooth pairing and the computer’s phone link each have their own confirmation. Computer permissions remain in desktop Settings."
-                    )
+                    Text("Add Wi-Fi for a direct connection, or associate this phone with your board on the computer.")
                 }
                 if accessory.savedRelay {
                     Section {
@@ -79,7 +83,26 @@ struct AccessoryView: View {
         .navigationTitle("k-chain")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showSetup) { WiFiSetupView() }
-        .sheet(isPresented: $accessory.pairSheet) { KChainPairSheet() }
+        .sheet(isPresented: $accessory.pairSheet, onDismiss: {
+            guard retryAfterDismissal else { return }
+            retryAfterDismissal = false
+            accessory.useSaved(.relay)
+        }) {
+            KChainPairSheet {
+                retryAfterDismissal = true
+                accessory.pairSheet = false
+            }
+        }
+        .sheet(isPresented: $showIntroduction, onDismiss: {
+            guard discoverAfterDismissal else { return }
+            discoverAfterDismissal = false
+            accessory.choose(.relay)
+        }) {
+            KChainSetupIntroduction {
+                discoverAfterDismissal = true
+                showIntroduction = false
+            }
+        }
         .confirmationDialog("Forget this Bluetooth accessory?", isPresented: $confirmForget, titleVisibility: .visible)
         {
             Button("Forget accessory", role: .destructive) { accessory.forget() }

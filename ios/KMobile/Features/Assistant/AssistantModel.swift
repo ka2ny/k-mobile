@@ -11,7 +11,7 @@ final class AssistantModel {
     /// Which control a result belongs to; the view puts the note right under that control.
     enum Spot: Hashable {
         case composer, stop, answerNow, steer, queue, show
-        case confirm(String), question(String), unqueue(String), attach, history, chat, thread
+        case confirm(String), question(String), unqueue(String), attach, history, chat, thread, memory
     }
     struct Note: Equatable { let text: String; let fail: Bool }
     struct Attachment: Identifiable, Equatable, Sendable { let id: String; let name: String; let size: Int }
@@ -21,12 +21,15 @@ final class AssistantModel {
     private(set) var loaded = false
     private(set) var readError: String?
     private(set) var history: [JSONValue] = []
+    private(set) var goals: [AssistantGoal] = []
     private(set) var unseen = 0
     private(set) var assistants: [Persona] = []
     private(set) var defaultAssistant: String?
     private(set) var chat: JSONValue?
     private(set) var threads: [JSONValue] = []
     private(set) var thread: JSONValue?
+    private(set) var memory: AssistantMemory?
+    private(set) var importing = false
     private(set) var attachments: [Attachment] = []
     private(set) var notes: [Spot: Note] = [:]
     private(set) var busy: Set<Spot> = []
@@ -35,8 +38,31 @@ final class AssistantModel {
 
     private let app: AppModel
     private var watchTask: Task<Void, Never>?
+    private var historyRefreshed = Date.distantPast
 
-    init(app: AppModel) { self.app = app }
+    private let originGateway: GatewayClient?
+    private let originGeneration: UUID
+    private var active = true
+    private var lifecycle = UUID()
+    private var requests: [Spot: UUID] = [:]
+    private var refreshID = UUID()
+    private var gateway: GatewayClient? { active && app.connectionGeneration == originGeneration ? originGateway : nil }
+
+    init(app: AppModel, gateway: GatewayClient? = nil) {
+        self.app = app
+        originGateway = gateway ?? app.gateway
+        originGeneration = app.connectionGeneration
+    }
+
+    private func begin(_ spot: Spot) -> UUID {
+        let id = UUID(); requests[spot] = id; busy.insert(spot); return id
+    }
+    private func valid(_ spot: Spot, _ id: UUID) -> Bool {
+        gateway != nil && requests[spot] == id && !Task.isCancelled
+    }
+    private func finish(_ spot: Spot, _ id: UUID) {
+        if requests[spot] == id { busy.remove(spot) }
+    }
 
     static let maxText = 2000
     static let maxFiles = 4
@@ -70,48 +96,57 @@ final class AssistantModel {
     /// Reads the task every 2 s while the page shows, as the phone page does; nothing runs when it's gone.
     func start() {
         guard watchTask == nil else { return }
+        active = true
         watchTask = Task { [weak self] in
             await self?.loadHistory()
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.refresh()
+                if Date().timeIntervalSince(self.historyRefreshed) >= 30 { await self.loadHistory() }
                 try? await Task.sleep(for: .seconds(2))
             }
         }
     }
 
-    func stop() { watchTask?.cancel(); watchTask = nil }
+    func stop() {
+        watchTask?.cancel(); watchTask = nil
+        active = false; requests = [:]; busy = []; refreshID = UUID(); lifecycle = UUID()
+    }
 
     func refresh() async {
-        guard let gateway = app.gateway else {
+        guard let gateway = gateway else {
             readError = "Connect to your computer to use the Assistant."
             loaded = true
             return
         }
-        let generation = app.connectionGeneration
+        let request = UUID(); refreshID = request
         do {
             let answer = try await gateway.get("/app/assistant", as: JSONValue.self)
-            guard generation == app.connectionGeneration else { return }
+            guard gateway === self.gateway, refreshID == request, !Task.isCancelled else { return }
             now = answer["now"]
             readError = nil
         } catch is CancellationError {
         } catch {
-            guard generation == app.connectionGeneration else { return }
+            guard gateway === self.gateway, refreshID == request, !Task.isCancelled else { return }
             readError = Self.words(error)
         }
-        loaded = true
+        if gateway === self.gateway, refreshID == request, !Task.isCancelled { loaded = true }
     }
 
     func loadHistory() async {
-        guard let gateway = app.gateway else { return }
-        var path = "/app/assistant?history=1"
+        guard let gateway = gateway else { return }
+        var path = "/app/assistant?history=1&goals=1"
         let q = search.trimmingCharacters(in: .whitespacesAndNewlines)
         if !q.isEmpty { path += "&q=" + Self.query(String(q.prefix(200))) }
-        busy.insert(.history)
-        defer { busy.remove(.history) }
+        let request = begin(.history)
+        historyRefreshed = Date()
+        defer { finish(.history, request) }
         do {
             let answer = try await gateway.get(path, as: JSONValue.self)
+            guard valid(.history, request) else { return }
             history = answer["history"]?.array ?? []
+            goals = (answer["goals"]?.array ?? []).prefix(20).compactMap(AssistantGoal.init)
+            historyRefreshed = Date()
             unseen = answer["unseen"]?.int ?? 0
             defaultAssistant = answer["default"]?.string
             assistants = (answer["assistants"]?.array ?? []).compactMap { a in
@@ -122,42 +157,56 @@ final class AssistantModel {
             notes[.history] = nil
         } catch is CancellationError {
         } catch {
+            guard valid(.history, request) else { return }
             notes[.history] = Note(text: Self.words(error), fail: true)
         }
     }
 
     func openChat(_ id: String) async {
-        guard let gateway = app.gateway, id.range(of: #"^t\d{8}-\d{6}-[0-9a-f]{4}$"#, options: .regularExpression) != nil
+        guard let gateway = gateway, id.range(of: #"^t\d{8}-\d{6}-[0-9a-f]{4}$"#, options: .regularExpression) != nil
         else { return }
         chat = nil
-        busy.insert(.chat)
-        defer { busy.remove(.chat) }
+        let request = begin(.chat)
+        defer { finish(.chat, request) }
         do {
-            chat = try await gateway.get("/app/assistant?chat=" + id, as: JSONValue.self)["chat"]
+            let answer = try await gateway.get("/app/assistant?chat=" + id, as: JSONValue.self)
+            guard valid(.chat, request) else { return }
+            chat = answer["chat"]
             notes[.chat] = nil
         } catch {
+            guard valid(.chat, request) else { return }
             notes[.chat] = Note(text: Self.words(error), fail: true)
         }
     }
 
     func loadThreads() async {
-        guard let gateway = app.gateway else { return }
+        guard let gateway = gateway else { return }
+        let request = begin(.thread)
+        defer { finish(.thread, request) }
         do {
-            threads = try await gateway.get("/app/assistant?threads=1", as: JSONValue.self)["threads"]?.array ?? []
+            let answer = try await gateway.get("/app/assistant?threads=1", as: JSONValue.self)
+            guard valid(.thread, request) else { return }
+            threads = answer["threads"]?.array ?? []
             notes[.thread] = nil
         } catch {
+            guard valid(.thread, request) else { return }
             notes[.thread] = Note(text: Self.words(error), fail: true)
         }
     }
 
     func openThread(_ id: String) async {
-        guard let gateway = app.gateway, id.range(of: #"^h[0-9a-f]{10}$"#, options: .regularExpression) != nil
+        guard let gateway = gateway, id.range(of: #"^h[0-9a-f]{10}$"#, options: .regularExpression) != nil
         else { return }
+        thread = nil
+        let request = begin(.thread)
+        defer { finish(.thread, request) }
         do {
             let answer = try await gateway.get("/app/assistant?thread=" + id, as: JSONValue.self)
+            guard valid(.thread, request) else { return }
             thread = answer["thread"] ?? answer
             notes[.thread] = nil
         } catch {
+            guard valid(.thread, request) else { return }
             notes[.thread] = Note(text: Self.words(error), fail: true)
         }
     }
@@ -167,6 +216,7 @@ final class AssistantModel {
     /// Starts a task; with `follow`, it goes on in the open chat.
     @discardableResult
     func startTask(_ text: String, follow: String? = nil) async -> Bool {
+        guard !busy.contains(.attach), !importing else { return false }
         var body: [String: JSONValue] = ["text": .string(Self.clip(text))]
         if let a = chosenAssistant { body["assistant"] = .string(a) }
         if let follow { body["follow"] = .string(follow) }
@@ -204,17 +254,18 @@ final class AssistantModel {
 
     @discardableResult
     private func act(_ action: String, _ extra: [String: JSONValue], spot: Spot, quietOK: Bool = false) async -> Bool {
-        guard let gateway = app.gateway else {
+        guard let gateway = gateway else {
             notes[spot] = Note(text: "Connect to your computer first.", fail: true)
             return false
         }
         guard !busy.contains(spot) else { return false }
-        busy.insert(spot)
-        defer { busy.remove(spot) }
+        let request = begin(spot)
+        defer { finish(spot, request) }
         var body = extra
         body["action"] = .string(action)
         do {
             let answer = try await gateway.send("/app/assistant/do", json: JSONValue.object(body), as: JSONValue.self)
+            guard valid(spot, request) else { return false }
             let ok = answer["ok"]?.bool != false
             let words = answer["note"]?.string ?? ""
             if !ok {
@@ -223,8 +274,9 @@ final class AssistantModel {
                 notes[spot] = words.isEmpty ? nil : Note(text: words, fail: false)
             }
             await refresh()
-            return ok
+            return ok && valid(spot, request)
         } catch {
+            guard valid(spot, request) else { return false }
             notes[spot] = Note(text: Self.words(error), fail: true)
             await refresh()
             return false
@@ -234,7 +286,7 @@ final class AssistantModel {
     // MARK: - Files from the phone
 
     func attach(_ data: Data, name: String) async {
-        guard let gateway = app.gateway else { return }
+        guard let gateway, !busy.contains(.attach), !busy.contains(.composer) else { return }
         guard attachments.count < Self.maxFiles else {
             notes[.attach] = Note(text: "Four files at most go with one task.", fail: true)
             return
@@ -244,27 +296,75 @@ final class AssistantModel {
             notes[.attach] = Note(text: "Files for one task can be 20 MB together. That one doesn't fit.", fail: true)
             return
         }
-        busy.insert(.attach)
-        defer { busy.remove(.attach) }
+        let request = begin(.attach)
+        defer { finish(.attach, request) }
         do {
             let answer = try await gateway.upload(
                 "/app/assistant/attach?name=" + Self.query(String(name.prefix(120))), data: data, as: JSONValue.self)
+            guard valid(.attach, request) else { return }
             guard let id = answer["id"]?.string else { throw GatewayError.invalidResponse }
             attachments.append(Attachment(id: id, name: answer["name"]?.string ?? name, size: answer["size"]?.int ?? data.count))
             notes[.attach] = nil
         } catch {
+            guard valid(.attach, request) else { return }
             notes[.attach] = Note(text: Self.words(error), fail: true)
         }
     }
 
     func unattach(_ id: String) async {
-        guard let gateway = app.gateway else { return }
+        guard let gateway, !busy.contains(.attach), !busy.contains(.composer), !importing else { return }
+        let request = begin(.attach)
+        defer { finish(.attach, request) }
         do {
             _ = try await gateway.send("/app/assistant/unattach", json: JSONValue.object(["id": .string(id)]), as: JSONValue.self)
+            guard valid(.attach, request) else { return }
             attachments.removeAll { $0.id == id }
             notes[.attach] = nil
         } catch {
+            guard valid(.attach, request) else { return }
             notes[.attach] = Note(text: Self.words(error), fail: true)
+        }
+    }
+
+    func loadMemory(_ persona: String) async {
+        guard let gateway else { return }
+        memory = nil
+        let request = begin(.memory)
+        defer { finish(.memory, request) }
+        do {
+            let answer = try await gateway.get("/app/assistant?memory=" + Self.query(persona), as: JSONValue.self)
+            guard valid(.memory, request) else { return }
+            guard let value = answer["memory"], !value.isNull else { throw GatewayError.invalidResponse }
+            memory = AssistantMemory(value)
+            notes[.memory] = nil
+        } catch {
+            guard valid(.memory, request) else { return }
+            notes[.memory] = Note(text: Self.words(error), fail: true)
+        }
+    }
+
+    func attachmentError(_ error: Error) { notes[.attach] = Note(text: Self.words(error), fail: true) }
+
+    func importFiles(_ urls: [URL]) async {
+        guard gateway != nil, !importing, !busy.contains(.attach), !busy.contains(.composer) else { return }
+        importing = true
+        let operation = lifecycle
+        defer { importing = false }
+        for url in urls {
+            guard operation == lifecycle, gateway != nil, !Task.isCancelled else { return }
+            let remaining = Self.maxBytes - attachments.reduce(0) { $0 + $1.size }
+            guard attachments.count < Self.maxFiles else {
+                notes[.attach] = Note(text: "A task can have up to four files.", fail: true); return
+            }
+            do {
+                let data = try await Task.detached { try AssistantAttachment.read(url, limit: remaining) }.value
+                guard operation == lifecycle, gateway != nil, !Task.isCancelled else { return }
+                await attach(data, name: url.lastPathComponent)
+                if notes[.attach]?.fail == true { return }
+            } catch {
+                guard operation == lifecycle, gateway != nil, !Task.isCancelled else { return }
+                attachmentError(error); return
+            }
         }
     }
 

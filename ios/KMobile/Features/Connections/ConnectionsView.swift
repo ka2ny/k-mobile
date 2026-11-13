@@ -37,7 +37,7 @@ struct ConnectionsView: View {
                             .accessibilityIdentifier("connections.add")
                     } footer: {
                         Text(
-                            "Computer uses the phone gateway. Companion uses the desktop’s dedicated k-chain address. Each keeps its own pairing and permissions."
+                            "Choose Computer for Remote, files, Agents and Assistant. The k-chain desktop service offers companion controls with separate permissions."
                         )
                     }
                 }

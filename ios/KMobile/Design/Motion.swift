@@ -18,6 +18,7 @@ struct QuietControlStyle: ButtonStyle {
                     accent.opacity(contrast == .increased ? 0.5 : 0.14), lineWidth: 1)
             }
             .contentShape(RoundedRectangle(cornerRadius: Design.controlRadius))
+            .scaleEffect(configuration.isPressed && enabled && !reduceMotion ? 0.985 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }
@@ -44,6 +45,7 @@ struct QuietProminentStyle: ButtonStyle {
                     .padding(2).allowsHitTesting(false)
             }
             .contentShape(RoundedRectangle(cornerRadius: Design.controlRadius))
+            .scaleEffect(configuration.isPressed && enabled && !reduceMotion ? 0.985 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
     }
 }

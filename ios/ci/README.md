@@ -88,3 +88,5 @@ Fastlane lane commands on a configured Mac are `bundle exec fastlane ios test`, 
 A successful CI build validates compilation/tests and produces an IPA. Bluetooth bonding, Wi-Fi provisioning, board interoperability and locked-phone relay reliability still require physical-device checks in `../README.md`.
 
 References: [Fastlane build_app](https://docs.fastlane.tools/actions/build_app/), [GitHub signing certificates](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications), [official Xcode 27 runner announcement](https://github.com/actions/runner-images/issues/14404).
+
+The native test command has a 900-second watchdog, and each test has a 180-second execution limit. A stalled command exits with diagnostics so Codemagic can publish its logs rather than leaving an opaque step running indefinitely.

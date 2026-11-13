@@ -12,12 +12,23 @@ struct KChainDeviceView: View {
         case asking = "KChainFaceAsking"
 
         /// The board is looking for the phone or waiting on it: the screen's light reaches out.
-        var searching: Bool { self == .pair || self == .thinking || self == .asking || self == .wifi }
+        var searching: Bool { self == .thinking }
+
+        var symbol: String {
+            switch self {
+            case .pair, .idle: "circle.dotted.circle"
+            case .thinking: "antenna.radiowaves.left.and.right"
+            case .ready: "checkmark.shield"
+            case .problem: "exclamationmark.circle"
+            case .wifi: "wifi"
+            case .asking: "number"
+            }
+        }
 
         var words: String {
             switch self {
             case .pair: "Not paired yet"
-            case .idle: "Paired, resting"
+            case .idle: "Saved accessory, disconnected"
             case .thinking: "Connecting"
             case .ready: "Connected"
             case .problem: "Needs attention"
@@ -29,6 +40,8 @@ struct KChainDeviceView: View {
 
     let face: Face
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var visible = false
 
     // Geometry of the body picture (280 × 325 pt, screen hole 200 × 245 at 40, 40).
     private static let size = CGSize(width: 280, height: 325)
@@ -39,10 +52,12 @@ struct KChainDeviceView: View {
         GeometryReader { proxy in
             let scale = min(proxy.size.width / Self.size.width, proxy.size.height / Self.size.height)
             ZStack(alignment: .topLeading) {
-                PairingHalo(active: face.searching && !reduceMotion, scale: scale)
-                Image(face.rawValue)
-                    .resizable()
-                    .interpolation(.high)
+                PairingHalo(active: visible && scenePhase == .active && face.searching && !reduceMotion, scale: scale)
+                ZStack {
+                    Color(red: 0.055, green: 0.065, blue: 0.075)
+                    Image(systemName: face.symbol)
+                        .font(.largeTitle).foregroundStyle(.white.opacity(0.85))
+                }
                     .frame(width: Self.screen.width * scale, height: Self.screen.height * scale)
                     .clipShape(RoundedRectangle(cornerRadius: Self.radius * scale, style: .continuous))
                     .offset(x: Self.screen.minX * scale, y: Self.screen.minY * scale)
@@ -61,6 +76,8 @@ struct KChainDeviceView: View {
         .accessibilityElement()
         .accessibilityLabel("k-chain")
         .accessibilityValue(face.words)
+        .onAppear { visible = true }
+        .onDisappear { visible = false }
     }
 }
 
@@ -74,12 +91,8 @@ extension AccessoryModel {
             return working ? .thinking : .wifi
         }
         if working { return .thinking }
-        if mode == .relay && ready { return .ready }
-        if status.hasPrefix("Connecting") || status.hasPrefix("Waiting") || status.hasPrefix("Bluetooth connected")
-            || status.hasPrefix("Board disconnected. Reconnecting") || status.hasPrefix("Bluetooth is restarting")
-        {
-            return .thinking
-        }
+        if mode == .relay && pairing.verified { return .ready }
+        if pairing.inProgress { return .thinking }
         return savedRelay ? .idle : .pair
     }
 }
