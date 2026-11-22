@@ -1,0 +1,50 @@
+# k-hole for iPhone on Codemagic: the XcodeGen project generated, built for the simulator with screenshots of its
+# own screens, then archived and packaged as an unsigned IPA (sign it with your own certificate to install).
+workflows:
+  k-hole-ios:
+    name: k-hole iOS (simulator screenshots, unsigned IPA)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+    scripts:
+      - name: Generate the project
+        script: |
+          set -euo pipefail
+          brew install xcodegen
+          cd ios && xcodegen generate
+      - name: Build for the simulator
+        script: |
+          set -euo pipefail
+          cd ios
+          SIM=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["name"] for r in d.values() for x in r if x["name"].startswith("iPhone") and "Pro" in x["name"]))')
+          echo "SIM_NAME=$SIM" >> "$CM_ENV"
+          xcodebuild -project KHole.xcodeproj -scheme KHole -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM" \
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build | tee build/sim-build.log | tail -n 60
+      - name: Simulator screenshots
+        script: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,os; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r in d.values() for x in r if x["name"]==os.environ["SIM_NAME"]))')
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+          APP=$(find ios/build/sim/Build/Products -name 'KHole.app' -maxdepth 3 | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots
+          xcrun simctl launch "$UDID" os.khole.app; sleep 6
+          xcrun simctl io "$UDID" screenshot shots/1-connect.png
+          xcrun simctl openurl "$UDID" "khole://kchain"; sleep 3
+          xcrun simctl io "$UDID" screenshot shots/2-kchain.png
+      - name: Unsigned IPA
+        script: |
+          set -euo pipefail
+          cd ios
+          xcodebuild -project KHole.xcodeproj -scheme KHole -sdk iphoneos -configuration Release -archivePath build/KHole.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive | tee build/archive.log | tail -n 40
+          mkdir -p build/ipa/Payload
+          cp -R build/KHole.xcarchive/Products/Applications/KHole.app build/ipa/Payload/
+          (cd build/ipa && zip -qry KHole-unsigned.ipa Payload && rm -rf Payload)
+    artifacts:
+      - shots/*.png
+      - ios/build/ipa/*.ipa
+      - ios/build/*.log

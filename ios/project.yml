@@ -1,0 +1,117 @@
+# k-hole for iPhone: the native shell around the phone app (remote/app and its parts, served by the computer's
+# khole-web) with what only a native app can do: setting up a k-chain over Bluetooth, Home Screen and Lock Screen
+# widgets, the Share Sheet to k-beam. The screens themselves stay the phone app's, so there is one design.
+#
+#   brew install xcodegen && cd ios && xcodegen && open KHole.xcodeproj
+#
+# CI: .github/workflows/ios.yml builds it for the simulator and takes screenshots (no signing).
+name: KHole
+options:
+  bundleIdPrefix: os.khole
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    DEVELOPMENT_TEAM: ""                 # set to your team id to sign (Apple Developer account)
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  ESPProvision:
+    url: https://github.com/espressif/esp-idf-provisioning-ios
+    from: "3.0.0"
+targets:
+  KHole:
+    type: application
+    platform: iOS
+    sources:
+      - path: KHole
+      - path: Shared
+    resources:
+      - path: KHole/Assets.xcassets
+    dependencies:
+      - package: ESPProvision
+      - target: KHoleWidgets
+        embed: true
+      - target: KHoleShare
+        embed: true
+    info:
+      path: KHole/Info.plist
+      properties:
+        CFBundleDisplayName: k-hole
+        UILaunchScreen:
+          UIColorName: LaunchBlack
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSCameraUsageDescription: "to scan the pairing code your computer shows, and the code a k-chain shows"
+        NSBluetoothAlwaysUsageDescription: "to set up a k-chain: it takes your Wi-Fi from this phone over Bluetooth"
+        NSLocalNetworkUsageDescription: "to reach your computer and your k-chain on your home network"
+        NSPhotoLibraryAddUsageDescription: "to save pictures k-beam brings from your computer"
+        CFBundleURLTypes:
+          - CFBundleURLName: os.khole.app
+            CFBundleURLSchemes: [khole]
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: KHole/KHole.entitlements
+      properties:
+        com.apple.security.application-groups: [group.os.khole]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: os.khole.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+  KHoleWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: KHoleWidgets
+      - path: Shared
+    info:
+      path: KHoleWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: k-hole
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: KHoleWidgets/KHoleWidgets.entitlements
+      properties:
+        com.apple.security.application-groups: [group.os.khole]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: os.khole.app.widgets
+  KHoleShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: KHoleShare
+      - path: Shared
+    info:
+      path: KHoleShare/Info.plist
+      properties:
+        CFBundleDisplayName: k-beam
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsImageWithMaxCount: 20
+              NSExtensionActivationSupportsMovieWithMaxCount: 5
+              NSExtensionActivationSupportsFileWithMaxCount: 20
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    entitlements:
+      path: KHoleShare/KHoleShare.entitlements
+      properties:
+        com.apple.security.application-groups: [group.os.khole]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: os.khole.app.share
+schemes:
+  KHole:
+    build:
+      targets:
+        KHole: all
+    run:
+      config: Debug

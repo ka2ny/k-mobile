@@ -1,0 +1,45 @@
+# k-hole for iPhone (ios/): build it for the iPhone simulator, run it, and keep screenshots of its own screens.
+# No signing (that needs an Apple Developer account: set DEVELOPMENT_TEAM in ios/project.yml). Started by hand
+# (macOS minutes cost more than Linux ones), and on pull requests that change ios/.
+name: ios
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+permissions:
+  contents: read
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app || true; xcodebuild -version
+      - name: Project
+        run: brew install xcodegen && cd ios && xcodegen generate
+      - name: Build (simulator)
+        run: |
+          cd ios
+          xcodebuild -project KHole.xcodeproj -scheme KHole -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 80
+      - name: Screenshots
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r in d.values() for x in r if x["name"]=="iPhone 16 Pro"))')
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+          APP=$(find ios/build/Build/Products -name 'KHole.app' -maxdepth 3 | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots
+          xcrun simctl launch "$UDID" os.khole.app; sleep 6
+          xcrun simctl io "$UDID" screenshot shots/1-connect.png
+          xcrun simctl openurl "$UDID" "khole://kchain"; sleep 3
+          xcrun simctl io "$UDID" screenshot shots/2-kchain.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-shots
+          path: shots/
