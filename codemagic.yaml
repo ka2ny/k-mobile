@@ -17,6 +17,7 @@ workflows:
         script: |
           set -euo pipefail
           cd ios
+          mkdir -p build                      # tee writes the log there before xcodebuild makes the folder
           SIM=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["name"] for r in d.values() for x in r if x["name"].startswith("iPhone") and "Pro" in x["name"]))')
           echo "SIM_NAME=$SIM" >> "$CM_ENV"
           xcodebuild -project KHole.xcodeproj -scheme KHole -sdk iphonesimulator -destination "platform=iOS Simulator,name=$SIM" \
@@ -39,6 +40,7 @@ workflows:
         script: |
           set -euo pipefail
           cd ios
+          mkdir -p build
           xcodebuild -project KHole.xcodeproj -scheme KHole -sdk iphoneos -configuration Release -archivePath build/KHole.xcarchive \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive | tee build/archive.log | tail -n 40
           mkdir -p build/ipa/Payload
